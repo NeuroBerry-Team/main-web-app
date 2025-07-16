@@ -9,13 +9,13 @@ Para borrar todo sin importar nada, correr:
 docker system prune -a
 ```
 **Nota**: Algunas veces es necesario remover los volumenes para evitar problemas con postgres, minio u otros servicios:
-'''sh
+```sh
 docker compose -f docker-compose.dev.yml down -v
-'''
+```
 o para borrar todo:
-'''sh
+```sh
 docker volume prune -f
-'''
+```
 
 ## PRUNE manual
 Hazle como dicte chat gpt
