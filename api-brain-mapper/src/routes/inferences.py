@@ -12,7 +12,7 @@ from logs.logger import logger
 from ..database.dbConnection import db
 from ..models.inference import Inference
 from ..security.decorators_utils import auth_required
-from ..cloudServices.minioConnections import getMinioClient
+from ..cloudServices.minioConnections import getMinioClientExternal
 from ..cloudServices.nnApiConnections import NnAPIClient
 
 # Instantiate a NnAPIClient
@@ -29,13 +29,13 @@ inferences = Blueprint('inferences', __name__, url_prefix='/inferences')
 @auth_required()
 def getBaseImgPresignedUrls():
     # Instantiate a minio client
-    minioClient = getMinioClient()
+    minioClient = getMinioClientExternal()
 
     # Creates unique foldername
     folderName = str(uuid.uuid4().hex)
 
     # Configure s3 constants for inferences bucket
-    s3Bucket= os.getenv('S3_BUCKET_INFERENCES_RESULTS')
+    s3Bucket = os.getenv('S3_BUCKET_INFERENCES_RESULTS')
     s3LiveUrl = os.getenv('S3_LIVE_BASE_URL') + s3Bucket
     presignedExpTime = int(os.getenv('S3_PRESIGNED_EXPIRATION'))
 
@@ -43,11 +43,14 @@ def getBaseImgPresignedUrls():
     try:
         imgObjectKey = f"{folderName}/original_img.jpg"
         imgLiveUrl = f"{s3LiveUrl}/{imgObjectKey}"
+        print(f"Uploading image to: {imgLiveUrl}")
         imgUploadUrl = minioClient.presigned_put_object(
             s3Bucket,
             imgObjectKey,
             expires=datetime.timedelta(seconds=presignedExpTime)
         )
+        print(f"Presigned upload URL: {imgUploadUrl}")
+        
     except Exception as exc:
         logger.exception('Presigned S3 error')
         abort(500, 'Error getting presigned url for img')
@@ -78,6 +81,7 @@ def generateInference():
     # Make API call to ANN-API to make the inference
     try:
         payload = {'imgObjectKey': imgObjectKey}
+        print(f'Generating inference for {imgObjectKey} with payload: {payload}')
         json_response = nnClient.generateInference(payload)
         generatedImageUrl = json_response['generatedImgUrl']
     except Exception as exc:

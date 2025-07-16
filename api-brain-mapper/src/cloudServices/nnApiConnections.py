@@ -32,7 +32,7 @@ class NnAPIClient:
     
     def generateInference(self, data=None):
         token = self._generateToken()
-        url = f"{self.base_url}/inferencia"
+        url = f"{self.base_url}"
         headers = {
             'Authorization': f'Bearer {token}',
             'Content-Type': 'application/json'

@@ -66,9 +66,16 @@ services:
   
   mc:
     image: minio/mc
-    entrypoint: /bin/sh
-    stdin_open: true
-    tty: true
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${S3_SECRET_KEY}
+    volumes:
+      - ./setup-minio.sh:/setup-minio.sh
+      - ./minio-policy.json:/workspace/minio-policy.json
+    command: sh /setup-minio.sh
+    entrypoint: ["/bin/sh", "/setup-minio.sh"]
     depends_on:
       - s3
 

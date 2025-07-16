@@ -1,13 +1,21 @@
 # Proyecto Modular CUCEI
 
 # Como levantar todo el sistema en entorno de desarrollo
-Antes de nada, borrar toooodas las imagenes y containers de docker relacionados al modular.
+Antes de nada, borrar todas las imagenes y containers de docker relacionados al modular.
 
 ## PRUNE a todo docker
 Para borrar todo sin importar nada, correr: 
 ```sh
 docker system prune -a
 ```
+**Nota**: Algunas veces es necesario remover los volumenes para evitar problemas con postgres, minio u otros servicios:
+'''sh
+docker compose -f docker-compose.dev.yml down -v
+'''
+o para borrar todo:
+'''sh
+docker volume prune -f
+'''
 
 ## PRUNE manual
 Hazle como dicte chat gpt
@@ -20,6 +28,7 @@ Pasos para iniciar la App
 
 1. En la carpeta raíz del repo ubicar el archivo `.env_template` y hacer una copia del mismo con el nombre `.env.` (sobreescribirlo si lo pide). Una vez creado el archivo `.env` abrirlo y configurar *SOLO* las variables de entorno de desarrollo.
     > No olvides apuntar `FLASK_LOGFILE_PATH` al archivo `app-flask-errors.log` creado en el paso anterior
+    > **IMPORTANTE**: Ahora también debes configurar `S3_ACCESS_KEY` y `S3_SECRET_KEY` con las credenciales que quieras usar para tu aplicación (estos serán creados automáticamente)
 
 2. En la carpeta raíz ubicar el archivo `initPg_template.sh` y hacer una copia del mismo con el nombre `initPg.sh`.
 
@@ -50,7 +59,15 @@ NN_API_HOST=http://<host_ip>:8080/inferencia
 NN_API_SECRET_KEY=<nn_api_secret_key>
 ``` 
 
-Rellena las DB configs faltantes con lo que se configuro en el punto 1. Deja las S3 configs faltantes para después. Y no olvides que en `NN_API_URL` cambia se '<host_ip>' por tu ip o 'localhost' y en `NN_API_SECRET_KEY` se cambia `<nn_api_secret_key>` por la secret key que planeas usar en la `ANN`.
+### ¿Cómo generar una secret key con Python?
+
+Puedes generar una secret key segura ejecutando el siguiente comando en tu terminal:
+
+```sh
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+
+Esto imprimirá una cadena aleatoria de 64 caracteres hexadecimales, ideal para usar como `SECRET_KEY` o `NN_API_SECRET_KEY`.
 
 5. En la carpeta `webclient-brain-mapper` ubicar el archivo `.env.format` y hacer una copia del mismo con el nombre `.env`. Una vez creado el archivo `.env` abrirlo y configurar:
 ```env
@@ -60,6 +77,7 @@ Cambia `<host_ip>` por tu ip o `localhost`.
 
 
 6. Una vez configurados todos los servicios, procede iniciar los contenedores de docker con el comando `docker compose -f docker-compose.dev.yml up`.
+    > **NOTA**: El sistema ahora configurará automáticamente MinIO/S3 con los buckets necesarios, políticas y usuarios. No necesitas hacer configuración manual de S3.
 
 7. Cuando los contenedores ya estén prendidos, será hora de poblar la Base de Datos. Usando la terminal, ejecutar el comando `docker ps` y ubicar el hash del container `web-app-postgres-1`. Una vez ubicado copiarlo y ejecutar el siguiente comando: `docker exec -it {hash_copiado} /bin/sh`.
 
@@ -68,46 +86,38 @@ Cambia `<host_ip>` por tu ip o `localhost`.
 
 9. Después de que se haya ejecutado exitosamente el comando anterior, ejecutar `exit` para salir del contenedor de postgres.
 
-10. En tu navegador favorito escribe http://localhost:9001, esto te llevará a la UI del S3. Ingresa las credenciales que pusiste para MINIO en el punto 1.
-
-11. Una vez logeado haz click en 'Buckets' y da click en 'Create Bucket', crea un bucket llamado 'dataset' y otro llamado 'inferences'
-
-12. Con los buckets creados, busca ambos buckets en la sección de 'Buckets' y da click al primero que veas, esto desplegará una interfaz. En esa interfaz busca la opción 'Anonymous'.
-
-13. En la interfaz de 'Anonymous access' que acabas de acceder, da click en "Add Access Rule" y escribe "/" en el 'prefix' y selecciona 'readolny' en el accesso, por ultimo da click en 'Save'.
-
-14. Repite los pasos 12 y 13 para el bucket faltante.
-
-15. En la 'SideBar' de la izquierda, dar click en 'Access Keys' y dar click en 'Create access key' y un formulario será desplegado.
-
-16. En el 'switch' llamado 'Restrict beyond user policy' cambialo a 'ON'.
-
-17. El el bloque de texto desplegado por el paso anterior borra todo y pega lo sig:
-
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-    "Effect": "Allow",
-      "Action": [
-          "s3:*"
-      ],
-      "Resource": [
-          "arn:aws:s3:::dataset/*",
-          "arn:aws:s3:::inferences/*"
-      ]
-    }
-  ]
-}
-```
-
-18. Rellena el formulario restante y elige una fecha de expiración adecuada para desarrollo 1 Año o lo que se te ocurra.
-
-19. Da click en 'Create'. Una advertencia se mostrará y deberás asegurarte de guardar bien esa key.
-
-20. Con las claves de acceso creadas, detén todos los contenedores (o solo el contenedor de flask_app), configura las claves de S3 en `api-brain-mapper/.env` y vuelve a iniciar el/los contenedor(es).
-
+¡Listo! la aplicación ya está configurada y funcionando. Puedes acceder a:
+- **Web App**: http://localhost:3003
+- **API Flask**: http://localhost:5000
+- **MinIO Console**: http://localhost:9001 (usa las credenciales MINIO_ROOT_USER y MINIO_ROOT_PASSWORD o las del app user)
+- **PostgreSQL**: localhost:5432
 
 ## Levantar ANN y su API
 1. En la raiz del repo ubicar el archivo README.md y sigue sus instrucciones.
+
+
+## Notas sobre la configuración automática de S3/MinIO
+
+El sistema ahora incluye configuración automática de MinIO/S3 que elimina la necesidad de configuración manual. El script `setup-minio.sh` se ejecuta automáticamente cuando inicia el contenedor `mc` y realiza las siguientes tareas:
+
+1. **Crea buckets automáticamente**: `dataset` e `inferences`
+2. **Configura acceso público**: Establece permisos de lectura anónima para ambos buckets
+3. **Crea usuario de aplicación**: Usa las credenciales especificadas en `S3_ACCESS_KEY` y `S3_SECRET_KEY`
+4. **Aplica políticas**: Configura automáticamente las políticas de acceso desde `minio-policy.json`
+
+### Archivos de configuración:
+- `setup-minio.sh`: Script de configuración automática
+- `minio-policy.json`: Definición de políticas de acceso
+
+### Troubleshooting:
+Si necesitas verificar que la configuración se aplicó correctamente:
+```bash
+# Verificar buckets creados
+docker compose exec mc mc ls local
+
+# Verificar usuarios
+docker compose exec mc mc admin user list local
+
+# Verificar políticas
+docker compose exec mc mc admin policy list local
+```
