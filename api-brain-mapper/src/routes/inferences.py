@@ -12,7 +12,7 @@ from logs.logger import logger
 from ..database.dbConnection import db
 from ..models.inference import Inference
 from ..security.decorators_utils import auth_required
-from ..cloudServices.minioConnections import getMinioClientExternal
+from ..cloudServices.minioConnections import getMinioClient
 from ..cloudServices.nnApiConnections import NnAPIClient
 
 # Instantiate a NnAPIClient
@@ -29,7 +29,7 @@ inferences = Blueprint('inferences', __name__, url_prefix='/inferences')
 @auth_required()
 def getBaseImgPresignedUrls():
     # Instantiate a minio client
-    minioClient = getMinioClientExternal()
+    minioClient = getMinioClient()
 
     # Creates unique foldername
     folderName = str(uuid.uuid4().hex)
