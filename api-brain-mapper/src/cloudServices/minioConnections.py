@@ -4,6 +4,7 @@ from minio import Minio
 from urllib.parse import urlparse
 load_dotenv()
 
+# TODO: Remove the two minio clients, there should only be one
 def getMinioClient():
     return Minio(
         endpoint=f"{os.getenv('S3_HOST')}:{os.getenv('S3_PORT')}",
