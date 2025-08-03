@@ -19,7 +19,7 @@ services:
       dockerfile: Dockerfile
     restart: "unless-stopped"
     volumes:
-        - /home/images:/data
+        - minio_data:/data
     environment:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
@@ -74,6 +74,7 @@ services:
     volumes:
       - ./setup-minio.sh:/setup-minio.sh
       - ./minio-policy.json:/workspace/minio-policy.json
+      - ./datasets:/workspace/datasets
     command: sh /setup-minio.sh
     entrypoint: ["/bin/sh", "/setup-minio.sh"]
     depends_on:
@@ -81,3 +82,4 @@ services:
 
 volumes:
   pgdata:
+  minio_data:

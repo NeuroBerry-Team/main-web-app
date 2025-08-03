@@ -81,7 +81,7 @@ Cambia `<host_ip>` por tu ip o `localhost`.
 
 7. Cuando los contenedores ya estén prendidos, será hora de poblar la Base de Datos. Usando la terminal, ejecutar el comando `docker ps` y ubicar el hash del container `web-app-postgres-1`. Una vez ubicado copiarlo y ejecutar el siguiente comando: `docker exec -it {hash_copiado} /bin/sh`.
 
-8. Después de haber ejecutado el `docker exec`, ejecutar dentro de la terminal que se abrió el siguiente comando: `psql -U {DB_USER} -d {DB_NAME} -f /home/populateDB.sql`.
+8. Después de haber ejecutado el `docker exec`, ejecutar dentro de la terminal que se abrió el siguiente comando: `psql -U {DB_USER} -d {DB_NAME} -f /home/populateDB.sql`. O `docker compose -f docker-compose.dev.yml exec postgres psql -U myuser -d mydatabase -f /home/populateDB.sql`
     > Nota: Recuerda que `{DB_USER}` y `{DB_NAME}` son variables que configuraste en el paso 1, en este caso necesitas poner su valor explicito en lugar de `{DB_USER}`.
 
 9. Después de que se haya ejecutado exitosamente el comando anterior, ejecutar `exit` para salir del contenedor de postgres.
@@ -108,6 +108,9 @@ El sistema ahora incluye configuración automática de MinIO/S3 que elimina la n
 ### Archivos de configuración:
 - `setup-minio.sh`: Script de configuración automática
 - `minio-policy.json`: Definición de políticas de acceso
+
+## Sobre el Script y Buckets
+`setup-minio.sh` Configura automaticamente todo, si se va a hacer uso de entrenamiento en la API de la red neuronal, entonces se requiere tambien de una carpeta datasets.
 
 ### Troubleshooting:
 Si necesitas verificar que la configuración se aplicó correctamente:

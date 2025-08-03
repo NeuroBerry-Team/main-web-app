@@ -80,4 +80,25 @@ case "$user_policies" in
         ;;
 esac
 
+echo "Checking and uploading datasets if needed..."
+# Upload datasets only if they don't already exist in MinIO
+for dataset in /workspace/datasets/*/; do
+    if [ -d "$dataset" ]; then
+        dataset_name=$(basename "$dataset")
+        echo "Checking dataset: $dataset_name"
+        
+        # Check if dataset already exists in MinIO by looking for actual content
+        dataset_content=$(mc ls "local/dataset/$dataset_name/" 2>/dev/null)
+        if [ -n "$dataset_content" ]; then
+            echo "Dataset $dataset_name already exists in MinIO, skipping..."
+        else
+            echo "Uploading dataset: $dataset_name"
+            mc cp --recursive "$dataset" "local/dataset/$dataset_name/"
+            echo "✓ Uploaded $dataset_name"
+        fi
+    fi
+done
+
+echo "All datasets checked and uploaded if needed!"
+
 echo "MinIO setup completed successfully!"
