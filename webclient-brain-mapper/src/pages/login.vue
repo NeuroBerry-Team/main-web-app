@@ -6,7 +6,7 @@
           :width="500"
           aspect-ratio="1/1"
           cover
-          src="@/assets/BerryNetLogo.png"
+          src="@/assets/NeuroBerry_Logo.png"
         ></v-img>
       </div>
       <div>

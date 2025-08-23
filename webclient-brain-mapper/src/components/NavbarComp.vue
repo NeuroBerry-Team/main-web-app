@@ -5,8 +5,8 @@
       <div class="p-2 transition-all duration-200 hover:brightness-110">
         <v-img
           class="hover:cursor-pointer"
-          src="@/assets/BerryNet_LogoHorizontal.png"
-          heigth="60" width="150"
+          src="@/assets/NeuroBerry_horizontal.png"
+          height="60" width="150"
           cover
           @click="$router.push({ path: '/dashboard' })"
         >

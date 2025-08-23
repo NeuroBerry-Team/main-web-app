@@ -125,11 +125,11 @@
       <hr class="my-6 border-gray-200 sm:mx-auto dark:border-gray-700 lg:my-8">
       <div class="text-center">
         <a href="#" class="flex items-center justify-center mb-5 text-2xl font-semibold text-gray-900 dark:text-white">
-          <!-- <img src="./images/logo.svg" class="h-6 mr-3 sm:h-9" alt="BerryNet Logo" /> -->
-          BerryNet    
+          <!-- <img src="./images/logo.svg" class="h-6 mr-3 sm:h-9" alt="Neuro Berry Logo" /> -->
+          Neuro Berry
         </a>
         <span class="block text-sm text-center text-gray-500 dark:text-gray-400">
-          © 2023-2025 BerryNet™. All Rights Reserved.
+          © 2023-2025 Neuro Berry™. All Rights Reserved.
         </span>
         <ul class="flex justify-center mt-5 space-x-5">
           <li>

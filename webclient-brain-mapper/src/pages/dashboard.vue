@@ -2,7 +2,7 @@
   <div class="h-full w-full flex md:flex-col items-center justify-center flex-wrap bg-berry-secondary">
     <div class="mb-6 mt-16">
       <v-img
-          src="@/assets/BerryNet_LogoHorizontal.png"
+          src="@/assets/NeuroBerry_horizontal.png"
           width="300"
           cover
         >

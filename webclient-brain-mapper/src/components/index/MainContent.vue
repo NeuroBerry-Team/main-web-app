@@ -12,7 +12,7 @@
 					</p>
 				</div>
 				<div class="hidden lg:mt-0 lg:col-span-5 lg:flex">
-					<img src="@/assets/hero_berrynet.png" alt="berrys image">
+					<img src="@/assets/hero_neuroberry.png" alt="berrys image">
 				</div>
 			</div>
 		</section>
