@@ -31,7 +31,3 @@ coverage
 *.tsbuildinfo
 
 .env
-
-# Custom
-populateDB.sql
-initPg.sh
