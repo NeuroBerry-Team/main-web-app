@@ -26,7 +26,7 @@ inferences = Blueprint('inferences', __name__, url_prefix='/inferences')
 
 # ------- All the routes -------
 @inferences.route('/getBaseImgPresignedUrls', methods=['GET'])
-@auth_required()
+#@auth_required()
 def getBaseImgPresignedUrls():
     # Instantiate a minio client
     minioClient = getMinioClient()
@@ -61,7 +61,7 @@ def getBaseImgPresignedUrls():
     return jsonify(responseData), 200
 
 @inferences.route('/generateInference', methods=['POST'])
-@auth_required()
+#@auth_required()
 def generateInference():
     try:
         req = request.json
@@ -88,9 +88,15 @@ def generateInference():
         logger.exception(f'Error generating inference for {imgObjectKey}')
         abort(500, 'Error generating inference')
 
+    # TODO: Get the login working
+    # Temp userID for auth disabled
+    user_id = getattr(g, 'uid', None)
+    if user_id is None:
+        user_id = 1
+
     # Make new instance of inference model
     new_inference = Inference(
-        userId=g.uid,
+        userId=user_id,
         name=name,
         baseImageUrl=baseImageUrl,
         generatedImageUrl=generatedImageUrl,
