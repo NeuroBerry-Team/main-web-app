@@ -52,8 +52,8 @@
       <h2 class="section-title">Resultados y Beneficios</h2>
       <div class="results-cards">
         <div class="card">
-          <h3>Optimizacion</h3>
-          <p>Optimizar la identificacion del estado de madurez de frambuesas en una granja real</p>
+          <h3>Optimización</h3>
+          <p>Optimizar la identificación del estado de madurez de frambuesas en una granja real</p>
         </div>
         <div class="card">
           <h3>Sostenibilidad</h3>
