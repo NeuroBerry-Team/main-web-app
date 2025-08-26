@@ -2,7 +2,6 @@ from functools import wraps
 from flask import g, abort, current_app
 from sqlalchemy import select
 from ..models.user import User
-from ..models.scene import Scene
 from ..models.inference import Inference
 from ..database.dbConnection import db
 
@@ -16,7 +15,7 @@ class AuthorizationChecker:
         Check if user owns the specified resource
         
         Args:
-            resource_type: Type of resource ('scene', 'inference', etc.)
+            resource_type: Type of resource ('inference', 'user', etc.)
             resource_id: ID of the resource
             user_id: ID of the user
             
@@ -26,11 +25,7 @@ class AuthorizationChecker:
         Raises:
             ValueError: If resource type is not supported
         """
-        if resource_type == 'scene':
-            return AuthorizationChecker._check_scene_ownership(
-                resource_id, user_id
-            )
-        elif resource_type == 'inference':
+        if resource_type == 'inference':
             return AuthorizationChecker._check_inference_ownership(
                 resource_id, user_id
             )
@@ -42,31 +37,12 @@ class AuthorizationChecker:
             raise ValueError(f"Unsupported resource type: {resource_type}")
     
     @staticmethod
-    def _check_scene_ownership(scene_id, user_id):
-        """Check if user owns the scene"""
-        try:
-            stmt = select(Scene).where(
-                Scene.id == scene_id,
-                Scene.user_id == user_id
-            )
-            result = db.session.execute(stmt)
-            scene = result.scalar_one_or_none()
-            return scene is not None
-        except Exception:
-            current_app.logger.error(
-                f"Error checking scene ownership: scene_id={scene_id}, "
-                f"user_id={user_id}"
-            )
-            return False
-    
-    @staticmethod
     def _check_inference_ownership(inference_id, user_id):
-        """Check if user owns the inference through scene ownership"""
+        """Check if user owns the inference directly"""
         try:
-            # Get inference with associated scene
-            stmt = select(Inference).join(Scene).where(
+            stmt = select(Inference).where(
                 Inference.id == inference_id,
-                Scene.user_id == user_id
+                Inference.userId == user_id
             )
             result = db.session.execute(stmt)
             inference = result.scalar_one_or_none()
@@ -117,11 +93,8 @@ class AuthorizationChecker:
         Returns:
             Query result with user's resources
         """
-        if resource_type == 'scene':
-            stmt = select(Scene).where(Scene.user_id == user_id)
-        elif resource_type == 'inference':
-            stmt = (select(Inference).join(Scene)
-                    .where(Scene.user_id == user_id))
+        if resource_type == 'inference':
+            stmt = select(Inference).where(Inference.userId == user_id)
         else:
             raise ValueError(f"Unsupported resource type: {resource_type}")
         
@@ -256,10 +229,8 @@ def filter_user_resources(query, resource_type, user_id):
     Returns:
         Filtered query
     """
-    if resource_type == 'scene':
-        return query.where(Scene.user_id == user_id)
-    elif resource_type == 'inference':
-        return query.join(Scene).where(Scene.user_id == user_id)
+    if resource_type == 'inference':
+        return query.where(Inference.userId == user_id)
     else:
         # For unknown resource types, return empty result for safety
         return query.where(False)

@@ -153,16 +153,14 @@ class DatabaseSecurity:
 
 
 # Allowed tables and columns for dynamic queries
-ALLOWED_TABLES = [
-    'users',
-    'scenes',
-    'inferences',
-    'roles'
-]
+    ALLOWED_TABLES = {
+        'users',
+        'roles',
+        'inferences',
+    }
 
 ALLOWED_COLUMNS = {
     'users': ['id', 'email', 'first_name', 'last_name', 'created_at'],
-    'scenes': ['id', 'name', 'description', 'user_id', 'created_at'],
-    'inferences': ['id', 'scene_id', 'result', 'confidence', 'created_at'],
+    'inferences': ['id', 'userId', 'name', 'baseImageUrl', 'generatedImageUrl', 'createdOn'],
     'roles': ['id', 'name', 'description']
 }

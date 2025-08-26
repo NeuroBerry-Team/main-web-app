@@ -1,6 +1,5 @@
 from ..database.dbConnection import db
 from ..models.inference import Inference
-from ..models.scene import Scene
 from ..models.role import Role
 
 class User(db.Model):
@@ -13,4 +12,3 @@ class User(db.Model):
     roleId = db.Column(db.Integer, db.ForeignKey('roles.id'), nullable=False)
     role = db.relationship("Role", back_populates="users")
     inferences = db.relationship("Inference")
-    scenes = db.relationship("Scene")
