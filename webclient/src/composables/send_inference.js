@@ -14,50 +14,87 @@ export function useInference() {
     const apiUrl = import.meta.env.VITE_API_BASE_URL;
 
     try {
-      debug.value += '\nSolicitando presigned URL...';
-      const presignedRes = await fetch(`${apiUrl}/inferences/getBaseImgPresignedUrls`);
-      debug.value += `\nRespuesta presigned: status ${presignedRes.status}`;
-      if (!presignedRes.ok) throw new Error('Error obteniendo URL de subida');
+      debug.value += '\nSoliciting presigned URL...';
+      const presignedRes = await fetch(`${apiUrl}/inferences/getBaseImgPresignedUrls`, {
+        method: 'GET',
+        credentials: 'include'  // Cookies will be sent automatically
+      });
+      
+      debug.value += `\nPresigned response: status ${presignedRes.status}`;
+      
+      if (!presignedRes.ok) {
+        if (presignedRes.status === 401) {
+          throw new Error('Authentication required. Please login again.');
+        } else if (presignedRes.status === 403) {
+          throw new Error('Access denied. You do not have permission for this action.');
+        } else {
+          throw new Error(`Error getting upload URL: ${presignedRes.status}`);
+        }
+      }
 
       const presignedText = await presignedRes.text();
-      debug.value += `\nRespuesta presigned (raw): ${presignedText}`;
+      debug.value += `\nPresigned response (raw): ${presignedText}`;
+      
       let uploadURL, liveURL, imgObjectKey;
       try {
         ({ uploadURL, liveURL, imgObjectKey } = JSON.parse(presignedText));
       } catch (e) {
-        throw new Error('Respuesta del backend no es JSON válido');
+        throw new Error('Invalid response from server');
       }
 
-      debug.value += '\nSubiendo imagen a MinIO...';
+      debug.value += '\nUploading image to MinIO...';
       const uploadRes = await fetch(uploadURL, {
         method: 'PUT',
         body: selectedFile,
         headers: { 'Content-Type': selectedFile.type }
       });
-      debug.value += `\nRespuesta subida: status ${uploadRes.status}`;
-      if (!uploadRes.ok) throw new Error('Error subiendo imagen a MinIO');
+      
+      debug.value += `\nUpload response: status ${uploadRes.status}`;
+      if (!uploadRes.ok) {
+        throw new Error('Error uploading image to storage');
+      }
 
       const payload = {
         name: selectedFile.name,
         imgUrl: liveURL,
         imgObjectKey: imgObjectKey
       };
-      debug.value += `\nEnviando payload a backend: ${JSON.stringify(payload, null, 2)}`;
+      debug.value += `\nSending payload to backend: ${JSON.stringify(payload, null, 2)}`;
 
       const inferRes = await fetch(`${apiUrl}/inferences/generateInference`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        credentials: 'include'  // Cookies will be sent automatically
       });
-      debug.value += `\nRespuesta inferencia: status ${inferRes.status}`;
-      if (!inferRes.ok) throw new Error('Error generando inferencia');
+      
+      debug.value += `\nInference response: status ${inferRes.status}`;
+      
+      if (!inferRes.ok) {
+        if (inferRes.status === 401) {
+          throw new Error('Session expired. Please login again.');
+        } else if (inferRes.status === 403) {
+          throw new Error('Access denied. You do not have permission for this action.');
+        } else {
+          throw new Error(`Error generating inference: ${inferRes.status}`);
+        }
+      }
+      
       const inferData = await inferRes.json();
       result.value = inferData;
-      debug.value += `\nDatos inferencia: ${JSON.stringify(inferData, null, 2)}`;
+      debug.value += `\nInference data: ${JSON.stringify(inferData, null, 2)}`;
+      
     } catch (err) {
       error.value = err.message;
       debug.value += `\nError: ${err.message}`;
-      console.error(err);
+      console.error('Inference error:', err);
+      
+      // If authentication error, redirect to login
+      if (err.message.includes('Authentication required') || err.message.includes('Session expired')) {
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 2000);
+      }
     } finally {
       loading.value = false;
     }

@@ -11,42 +11,59 @@ def auth_required(requiredRoles=None):
     def decorator(f):
         @wraps(f)
         def decorated(*args, **kwargs):
-            auth_header = request.headers.get('Authorization')
-            if (auth_header):
-                auth_jwt = auth_header.split(" ")[1]
-            else:
-                auth_jwt = ""
+            # Try to get token from cookie first, then fallback to header
+            # for backward compatibility
+            token = request.cookies.get('access_token')
+            
+            # Fallback to header-based token (for API clients or transition)
+            if not token:
+                auth_header = request.headers.get('Authorization')
+                if auth_header and auth_header.startswith('Bearer '):
+                    token = auth_header.split(' ')[1]
+            
+            # If still no token found, return unauthorized
+            if not token:
+                abort(401, 'UNAUTHORIZED: No authentication token provided')
 
-            uid = None
             try:
-                if len(auth_jwt) > 0:
-                    uid = decode_auth_jwt(auth_jwt)
-                else:
-                    abort(400, 'No token provided')
+                uid = decode_auth_jwt(token)
+                if not uid:
+                    abort(401, 'UNAUTHORIZED: Invalid token')
             except Exception as e:
                 if isinstance(e, HTTPException):
                     abort(e.code, e.description)
                 else:
-                    abort(401, 'Invalid/Expired token')
+                    # More specific error handling
+                    error_msg = str(e)
+                    if 'expired_token' in error_msg:
+                        abort(401, 'UNAUTHORIZED: Token has expired')
+                    elif 'invalid_token' in error_msg:
+                        abort(401, 'UNAUTHORIZED: Invalid token')
+                    else:
+                        abort(401, 'UNAUTHORIZED: Token validation failed')
             
-            # If reached this point, means uid has something so lets search user
             # Check if user exists
-            stmt = select(User).where(User.id == uid)
-            result = db.session.execute(statement=stmt)
+            try:
+                stmt = select(User).where(User.id == uid)
+                result = db.session.execute(statement=stmt)
+                user = result.scalar_one_or_none()
+                
+                if user is None:
+                    abort(401, 'UNAUTHORIZED: User not found')
+            except Exception:
+                abort(500, 'INTERNAL ERROR: Database error')
 
-            # If no user found, return error
-            user = result.scalar_one_or_none()
-            if(user is None):
-                abort(400, 'BAD REQUEST')
-
-            # Store the uid and role in g so it's accessible throughout the request
+            # Store the uid and role in g so it's accessible
+            # throughout the request
             g.uid = uid
             g.role = user.role.name
 
-            # If user role is not in the requiredRoles return error
-            if(requiredRoles is not None):
-                if(user.role.name not in requiredRoles):
-                    abort(403, 'Forbidden: You do not have the required role')
+            # Check role permissions if required
+            if requiredRoles is not None:
+                if user.role.name not in requiredRoles:
+                    required_roles_str = ", ".join(requiredRoles)
+                    error_msg = f'FORBIDDEN: Required role(s): {required_roles_str}'
+                    abort(403, error_msg)
 
             return f(*args, **kwargs)
 

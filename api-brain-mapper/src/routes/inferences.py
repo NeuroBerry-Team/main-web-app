@@ -26,7 +26,7 @@ inferences = Blueprint('inferences', __name__, url_prefix='/inferences')
 
 # ------- All the routes -------
 @inferences.route('/getBaseImgPresignedUrls', methods=['GET'])
-#@auth_required()
+@auth_required()
 def getBaseImgPresignedUrls():
     # Instantiate a minio client
     minioClient = getMinioClient()
@@ -61,7 +61,7 @@ def getBaseImgPresignedUrls():
     return jsonify(responseData), 200
 
 @inferences.route('/generateInference', methods=['POST'])
-#@auth_required()
+@auth_required()
 def generateInference():
     try:
         req = request.json

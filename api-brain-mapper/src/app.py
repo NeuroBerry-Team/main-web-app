@@ -57,9 +57,37 @@ def create_app():
     app.register_blueprint(inferences)
 
     # Setup cors policies
-    app.config['CORS_EXPOSE_HEADERS'] = ['Authorization']
+    app.config['CORS_EXPOSE_HEADERS'] = ['Content-Type']
     app.config['CORS_SUPPORTS_CREDENTIALS'] = True
-    CORS(app, resources={r"/*": {"origins": "*"}}, expose_headers=['Authorization'])
+    
+    # Environment-aware CORS configuration
+    if os.getenv('ENV_MODE') == 'production':
+        # Production origins
+        allowed_origins = [
+            "https://yourdomain.com",  # Replace with domain
+            "https://www.yourdomain.com",
+        ]
+        
+        # You can also get production origins from environment variables
+        production_origin = os.getenv('FRONTEND_URL')
+        if production_origin:
+            allowed_origins.append(production_origin)
+            
+    else:
+        # Development origins
+        allowed_origins = [
+            "http://localhost:5173",  # Vite dev server
+            "http://localhost:3000",  # Alternative dev port
+            "http://localhost:3003",  # Your current frontend port
+            "http://127.0.0.1:5173",
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:3003"
+        ]
+    
+    CORS(app,
+         resources={r"/*": {"origins": allowed_origins}},
+         supports_credentials=True,
+         expose_headers=['Content-Type'])
 
     print('Runing apppp')
     return app

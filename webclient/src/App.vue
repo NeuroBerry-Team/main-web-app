@@ -1,5 +1,21 @@
 <script setup>
 import { RouterLink, RouterView } from 'vue-router'
+import { onMounted } from 'vue'
+import { useAuth } from './composables/use_auth.js'
+
+// Use authentication composable
+const { isLoggedIn, user, isAdmin, checkAuthStatus, logout } = useAuth()
+
+// Check authentication status when app loads
+onMounted(() => {
+  checkAuthStatus()
+})
+
+const handleLogout = async () => {
+  if (confirm('Are you sure you want to logout?')) {
+    await logout()
+  }
+}
 </script>
 
 <template>
@@ -13,8 +29,19 @@ import { RouterLink, RouterView } from 'vue-router'
           <RouterLink to="/about" class="nav-button">Proyecto</RouterLink>
           <RouterLink to="/database" class="nav-button">Database</RouterLink>
           <RouterLink to="/etiquetado" class="nav-button">Etiquetado</RouterLink>
-          <RouterLink to="/iatest" class="nav-button">Aplicación</RouterLink>
-          <RouterLink to="/login" class="nav-button">Login</RouterLink>
+          
+          <!-- Show application link only if logged in -->
+          <RouterLink v-if="isLoggedIn" to="/iatest" class="nav-button">Aplicación</RouterLink>
+          
+          <!-- Show admin features if user is admin -->
+          <RouterLink v-if="isAdmin" to="/admin" class="nav-button admin-link">Admin</RouterLink>
+          
+          <!-- Authentication links -->
+          <RouterLink v-if="!isLoggedIn" to="/login" class="nav-button login-button">Login</RouterLink>
+          <button v-if="isLoggedIn" @click="handleLogout" class="nav-button logout-button">
+            Logout
+            <span v-if="user?.role" class="user-role">({{ user.role }})</span>
+          </button>
         </nav>
       </div>
     </header>
@@ -93,6 +120,41 @@ nav {
 
 .nav-button.router-link-exact-active {
   background-color: rgba(255, 255, 255, 0.4);
+}
+
+/* Authentication-specific buttons */
+.login-button {
+  background-color: rgba(46, 204, 113, 0.2);
+}
+
+.login-button:hover {
+  background-color: rgba(46, 204, 113, 0.4);
+}
+
+.logout-button {
+  background-color: rgba(231, 76, 60, 0.2);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 1.05rem;
+}
+
+.logout-button:hover {
+  background-color: rgba(231, 76, 60, 0.4);
+}
+
+.admin-link {
+  background-color: rgba(155, 89, 182, 0.2);
+}
+
+.admin-link:hover {
+  background-color: rgba(155, 89, 182, 0.4);
+}
+
+.user-role {
+  font-size: 0.85rem;
+  opacity: 0.8;
+  margin-left: 0.5rem;
 }
 
 .view-container {
