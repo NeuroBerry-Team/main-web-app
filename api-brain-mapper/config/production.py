@@ -30,3 +30,7 @@ class ProductionConfig(object):
     SESSION_COOKIE_SECURE = True   # Require HTTPS for cookies
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Strict'  # Strict CSRF protection
+    
+    # CSRF Protection settings
+    CSRF_TOKEN_TIMEOUT = 1800  # 30 minutes in seconds
+    CSRF_SECRET_KEY = os.getenv('SECRET_KEY')

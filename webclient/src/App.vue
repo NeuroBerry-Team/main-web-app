@@ -2,13 +2,18 @@
 import { RouterLink, RouterView } from 'vue-router'
 import { onMounted } from 'vue'
 import { useAuth } from './composables/use_auth.js'
+import { useCSRF } from './composables/use_csrf.js'
 
 // Use authentication composable
 const { isLoggedIn, user, isAdmin, checkAuthStatus, logout } = useAuth()
 
+// Use CSRF protection
+const { initializeCSRF } = useCSRF()
+
 // Check authentication status when app loads
-onMounted(() => {
-  checkAuthStatus()
+onMounted(async () => {
+  await initializeCSRF()  // Initialize CSRF first
+  await checkAuthStatus()
 })
 
 const handleLogout = async () => {

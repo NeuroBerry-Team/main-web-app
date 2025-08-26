@@ -12,6 +12,10 @@ from ..database.dbConnection import db
 from ..security.jwt_utils import *
 from ..security.decorators_utils import auth_required
 from ..security.crypto_utils import *
+from ..security.rate_limiter import (rate_limit_login, check_account_lockout,
+                                     handle_failed_login)
+from ..security.input_validation import InputValidator
+from ..security.csrf_protection import get_csrf_token
 
 # Open file with available roles
 rolesFile = os.path.join(os.getcwd(), "src/database/reference-data/ROLES.json")
@@ -21,38 +25,35 @@ with open(rolesFile) as f:
 # Setup blueprint
 auth = Blueprint('auth', __name__, url_prefix='/auth')
 
+
 @auth.route('/addUser', methods=['POST'])
 @auth_required(["ADMIN"])
 def addUser():
-    req = request.json
+    # Validate request structure
+    req = InputValidator.validate_json_request(
+        request, ['name', 'lastName', 'email', 'passwd', 'roleId']
+    )
 
-    # Check if request has enough properties needed
-    required_keys = ['name', 'lastName', 'email', 'passwd', 'roleId']
-    if not all(key in req for key in required_keys):
-        abort(400, 'BAD REQUEST')
-
-    # Get request properties
-    name = req['name']
-    lastName = req['lastName']
-    email = req['email']
-    password = req['passwd']
-    roleId = req['roleId']
+    # Validate and sanitize input fields
+    name = InputValidator.validate_name(req['name'], "First name")
+    lastName = InputValidator.validate_name(req['lastName'], "Last name")
+    email = InputValidator.validate_email_format(req['email'])
+    password = InputValidator.validate_password(req['passwd'])
+    roleId = InputValidator.validate_integer(
+        req['roleId'], "Role ID", min_value=1
+    )
 
     # Search for existent user with same email
     try:
         stmt = select(User).where(User.email == email)
         result = db.session.execute(statement=stmt)
-    except Exception as exc:
+    except Exception:
         logger.exception('Error fetching from DB')
         abort(500, 'INTERNAL ERROR')
 
     userExists = result.fetchone() is not None
-    if(userExists):
-        abort(400, 'BAD REQUEST')
-
-    # Check password length, limited to 50 due to mitigate 70+ chars error with hash
-    if len(password) > 50:
-        abort(400, 'passwd_length')
+    if userExists:
+        abort(400, 'Email already exists')
 
     # Add new user to DB
     new_user = User(
@@ -67,7 +68,7 @@ def addUser():
     try:
         db.session.add(new_user)
         db.session.commit()
-    except Exception as exc:
+    except Exception:
         logger.exception('Error saving user in DB')
         abort(500, 'Error saving new user')
 
@@ -76,17 +77,26 @@ def addUser():
 
 
 @auth.route('/login', methods=['POST'])
+@rate_limit_login(max_attempts=5, window_minutes=15)
 def login():
-    req = request.json
+    # Validate request structure
+    req = InputValidator.validate_json_request(
+        request, ['email', 'passwd']
+    )
 
-    # Check if request has enough properties needed
-    required_keys = ['email', 'passwd']
-    if not all(key in req for key in required_keys):
-        abort(400, 'BAD REQUEST')
-
-    # Get request properties
-    email = req['email']
+    # Validate and normalize email
+    email = InputValidator.validate_email_format(req['email'])
     password = req['passwd']
+    
+    # Basic password validation (not full strength check for login)
+    if not password or len(password.strip()) == 0:
+        abort(400, 'Password is required')
+    
+    # Sanitize password (remove null bytes, limit length)
+    password = InputValidator.sanitize_string(password, max_length=200)
+    
+    # Check if account is locked
+    check_account_lockout(email)
 
     try:
         # Query to search user by email
@@ -94,23 +104,28 @@ def login():
             User.email == email
         )
         result = db.session.execute(statement=stmt)
-    except Exception as exc:
+    except Exception:
         logger.exception('Error fetching from DB')
         abort(500, 'INTERNAL ERROR')
 
-    # If no user matched the email in req, return error
+    # If no user matched the email in req, return standardized error
     user = result.scalar_one_or_none()
-    if(user is None):
-        abort(400, 'BAD REQUEST')
+    if user is None:
+        # Handle failed login for rate limiting
+        handle_failed_login(email)
+        # Use same error as wrong password to prevent username enumeration
+        abort(401, 'Invalid email or password')
 
     # If password not match, return error
-    if (not checkPasswordHash(user.password, password)):
-        abort(401, 'wrong_password')
+    if not checkPasswordHash(user.password, password):
+        # Handle failed login for rate limiting
+        handle_failed_login(email)
+        abort(401, 'Invalid email or password')
 
     # Serialize into JSON the DB response Obj (also exclude unwanted info)
     user_serialized = user_schema.dump(user)
 
-    #Create jwt
+    # Create jwt
     try:
         # Set JWT expiration to 24 hours to match cookie expiration
         auth_jwt = encode_auth_jwt(user.id, expires_in=1440)
@@ -231,4 +246,15 @@ def protected():
             abort(e.code, e.description)
         else:
             abort(500)
+
+
+@auth.route('/csrf-token', methods=['GET'])
+def get_csrf_token_endpoint():
+    """Get CSRF token for frontend"""
+    try:
+        token = get_csrf_token()
+        return jsonify({'csrf_token': token}), 200
+    except Exception:
+        logger.exception('Error generating CSRF token')
+        abort(500, 'Error generating CSRF token')
 

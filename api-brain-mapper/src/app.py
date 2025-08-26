@@ -6,6 +6,9 @@ from flask_migrate import Migrate
 from .database.dbConnection import db
 from .database.serializers_utils import ma
 from .security.bcrypt import bcrypt
+from .security.security_headers import setup_security_headers
+from .security.error_handler import setup_secure_error_handling
+from .security.csrf_protection import csrf
 from .routes.errorHandlers import errorHandlers
 
 # load .env file to environment
@@ -47,6 +50,15 @@ def create_app():
 
     # Configure flask_bcrypt utility
     bcrypt.init_app(app)
+    
+    # Setup security headers
+    setup_security_headers(app)
+    
+    # Setup secure error handling
+    setup_secure_error_handling(app)
+    
+    # Initialize CSRF protection
+    csrf.init_app(app)
 
     # Register http error handlers
     app.register_blueprint(errorHandlers)

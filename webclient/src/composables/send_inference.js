@@ -1,6 +1,8 @@
 import { ref } from 'vue';
+import { useCSRF } from './use_csrf.js';
 
 export function useInference() {
+  const { makeSecureRequest } = useCSRF();
   const loading = ref(false);
   const error = ref('');
   const result = ref(null);
@@ -15,9 +17,8 @@ export function useInference() {
 
     try {
       debug.value += '\nSoliciting presigned URL...';
-      const presignedRes = await fetch(`${apiUrl}/inferences/getBaseImgPresignedUrls`, {
-        method: 'GET',
-        credentials: 'include'  // Cookies will be sent automatically
+      const presignedRes = await makeSecureRequest(`${apiUrl}/inferences/getBaseImgPresignedUrls`, {
+        method: 'GET'
       });
       
       debug.value += `\nPresigned response: status ${presignedRes.status}`;
@@ -61,11 +62,10 @@ export function useInference() {
       };
       debug.value += `\nSending payload to backend: ${JSON.stringify(payload, null, 2)}`;
 
-      const inferRes = await fetch(`${apiUrl}/inferences/generateInference`, {
+      const inferRes = await makeSecureRequest(`${apiUrl}/inferences/generateInference`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        credentials: 'include'  // Cookies will be sent automatically
+        body: JSON.stringify(payload)
       });
       
       debug.value += `\nInference response: status ${inferRes.status}`;

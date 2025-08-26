@@ -7,6 +7,7 @@ load_dotenv()
 class DevelopmentConfig(object):
     TESTING = False
     DEBUG = True
+    SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
     
     # Database configuration
     db_user = os.getenv('DB_USER')
@@ -22,3 +23,9 @@ class DevelopmentConfig(object):
     SESSION_COOKIE_SECURE = False  # Allow cookies over HTTP in development
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
+    
+    # CSRF Protection settings
+    CSRF_TOKEN_TIMEOUT = 3600  # 1 hour in seconds
+    CSRF_SECRET_KEY = os.getenv(
+        'SECRET_KEY', 'dev-secret-key-change-in-production'
+    )

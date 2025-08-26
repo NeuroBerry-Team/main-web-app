@@ -1,4 +1,5 @@
 import { ref, computed } from 'vue';
+import { useCSRF } from './use_csrf.js';
 
 // Global authentication state
 const isLoggedIn = ref(false);
@@ -8,6 +9,7 @@ const error = ref('');
 
 export function useAuth() {
   const apiUrl = import.meta.env.VITE_API_BASE_URL;
+  const { makeSecureRequest, initializeCSRF } = useCSRF();
 
   // Check if user is logged in
   async function checkAuthStatus() {
@@ -78,9 +80,8 @@ export function useAuth() {
     error.value = '';
 
     try {
-      const response = await fetch(`${apiUrl}/auth/logout`, {
-        method: 'POST',
-        credentials: 'include'
+      const response = await makeSecureRequest(`${apiUrl}/auth/logout`, {
+        method: 'POST'
       });
 
       if (response.ok) {

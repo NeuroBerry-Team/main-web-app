@@ -180,3 +180,83 @@ Traceback (most recent call last):
   File "/usr/local/lib/python3.11/site-packages/requests/models.py", line 1024, in raise_for_status
     raise HTTPError(http_error_msg, response=self)
 requests.exceptions.HTTPError: 500 Server Error: Internal Server Error for url: http://192.168.100.80:8080/inferencia
+[2025-08-26: 21:22:33] [error_handler] > Unexpected error occurred >> (<class 'TypeError'>, TypeError("rate_limit_login.<locals>.decorator() missing 1 required positional argument: 'f'"), <traceback object at 0x7f5c4d3f5cc0>)
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/flask/app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/flask/app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: rate_limit_login.<locals>.decorator() missing 1 required positional argument: 'f'
+[2025-08-26: 21:22:33] [error_handler] > Server error occurred >> None
+[2025-08-26: 21:37:31] [auth] > Error generating CSRF token >> (<class 'RuntimeError'>, RuntimeError('The session is unavailable because no secret key was set.  Set the secret_key on the application to something unique and secret.'), <traceback object at 0x7fb8aa664100>)
+Traceback (most recent call last):
+  File "/app/src/routes/auth.py", line 255, in get_csrf_token_endpoint
+    token = get_csrf_token()
+            ^^^^^^^^^^^^^^^^
+  File "/app/src/security/csrf_protection.py", line 164, in get_csrf_token
+    return csrf.generate_csrf_token()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/src/security/csrf_protection.py", line 129, in generate_csrf_token
+    session['_csrf_session_id'] = session_id
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/flask/sessions.py", line 97, in _fail
+    raise RuntimeError(
+RuntimeError: The session is unavailable because no secret key was set.  Set the secret_key on the application to something unique and secret.
+[2025-08-26: 21:38:05] [auth] > Error generating CSRF token >> (<class 'RuntimeError'>, RuntimeError('The session is unavailable because no secret key was set.  Set the secret_key on the application to something unique and secret.'), <traceback object at 0x7fb8a9337380>)
+Traceback (most recent call last):
+  File "/app/src/routes/auth.py", line 255, in get_csrf_token_endpoint
+    token = get_csrf_token()
+            ^^^^^^^^^^^^^^^^
+  File "/app/src/security/csrf_protection.py", line 164, in get_csrf_token
+    return csrf.generate_csrf_token()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/src/security/csrf_protection.py", line 129, in generate_csrf_token
+    session['_csrf_session_id'] = session_id
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/flask/sessions.py", line 97, in _fail
+    raise RuntimeError(
+RuntimeError: The session is unavailable because no secret key was set.  Set the secret_key on the application to something unique and secret.
+[2025-08-26: 21:40:11] [auth] > Error generating CSRF token >> (<class 'RuntimeError'>, RuntimeError('The session is unavailable because no secret key was set.  Set the secret_key on the application to something unique and secret.'), <traceback object at 0x7fbba58719c0>)
+Traceback (most recent call last):
+  File "/app/src/routes/auth.py", line 255, in get_csrf_token_endpoint
+    token = get_csrf_token()
+            ^^^^^^^^^^^^^^^^
+  File "/app/src/security/csrf_protection.py", line 164, in get_csrf_token
+    return csrf.generate_csrf_token()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/src/security/csrf_protection.py", line 129, in generate_csrf_token
+    session['_csrf_session_id'] = session_id
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/flask/sessions.py", line 97, in _fail
+    raise RuntimeError(
+RuntimeError: The session is unavailable because no secret key was set.  Set the secret_key on the application to something unique and secret.
+[2025-08-26: 21:40:30] [auth] > Error generating CSRF token >> (<class 'RuntimeError'>, RuntimeError('The session is unavailable because no secret key was set.  Set the secret_key on the application to something unique and secret.'), <traceback object at 0x7fbba45612c0>)
+Traceback (most recent call last):
+  File "/app/src/routes/auth.py", line 255, in get_csrf_token_endpoint
+    token = get_csrf_token()
+            ^^^^^^^^^^^^^^^^
+  File "/app/src/security/csrf_protection.py", line 164, in get_csrf_token
+    return csrf.generate_csrf_token()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/src/security/csrf_protection.py", line 129, in generate_csrf_token
+    session['_csrf_session_id'] = session_id
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/flask/sessions.py", line 97, in _fail
+    raise RuntimeError(
+RuntimeError: The session is unavailable because no secret key was set.  Set the secret_key on the application to something unique and secret.
+[2025-08-26: 21:46:30] [auth] > Error generating CSRF token >> (<class 'RuntimeError'>, RuntimeError('The session is unavailable because no secret key was set.  Set the secret_key on the application to something unique and secret.'), <traceback object at 0x7fa33fd3eac0>)
+Traceback (most recent call last):
+  File "/app/src/routes/auth.py", line 255, in get_csrf_token_endpoint
+    token = get_csrf_token()
+            ^^^^^^^^^^^^^^^^
+  File "/app/src/security/csrf_protection.py", line 164, in get_csrf_token
+    return csrf.generate_csrf_token()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/src/security/csrf_protection.py", line 129, in generate_csrf_token
+    session['_csrf_session_id'] = session_id
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/flask/sessions.py", line 97, in _fail
+    raise RuntimeError(
+RuntimeError: The session is unavailable because no secret key was set.  Set the secret_key on the application to something unique and secret.
