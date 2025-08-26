@@ -79,13 +79,14 @@ def addUser():
 @auth.route('/register', methods=['POST'])
 def register():
     """Public user registration endpoint"""
-    # Validate request structure - note: only need name, email, password
+    # Validate request structure - now includes lastName
     req = InputValidator.validate_json_request(
-        request, ['name', 'email', 'password']
+        request, ['name', 'lastName', 'email', 'password']
     )
 
     # Validate and sanitize input fields
-    name = InputValidator.validate_name(req['name'], field_name="Name", min_length=2, max_length=100)
+    name = InputValidator.validate_name(req['name'], field_name="Nombre", min_length=2, max_length=100)
+    lastName = InputValidator.validate_name(req['lastName'], field_name="Apellido", min_length=2, max_length=100)
     email = InputValidator.validate_email_format(req['email'])
     password = InputValidator.validate_password(req['password'])
     
@@ -125,10 +126,10 @@ def register():
         # Hash password 
         hashed_password = hashPassword(password)
         
-        # Create user object - using same structure as addUser
+        # Create user object - now including lastName
         new_user = User(
             name=name,
-            lastName="",  # We'll only collect name for now
+            lastName=lastName,
             email=email,
             password=hashed_password,
             roleId=roleId
@@ -142,7 +143,7 @@ def register():
         
         # Return success (don't auto-login for security)
         return jsonify({
-            "message": "Registration successful! Please log in with your credentials."
+            "message": "¡Registro exitoso! Por favor inicia sesión con tus credenciales."
         }), 201
         
     except Exception:
