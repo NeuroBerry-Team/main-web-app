@@ -103,7 +103,10 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useCSRF } from '../composables/use_csrf.js'
+
 const APIurl = import.meta.env.VITE_API_BASE_URL
+const { makeSecureRequest } = useCSRF()
 
 const activeTab = ref('login')
 
@@ -179,24 +182,82 @@ const handleRegister = async () => {
   registerError.value = ''
   
   // Basic validation
+  if (!registerName.value || registerName.value.trim().length < 2) {
+    registerError.value = 'Name must be at least 2 characters long'
+    registerLoading.value = false
+    return
+  }
+  
   if (registerPassword.value !== registerConfirm.value) {
     registerError.value = 'Passwords do not match'
     registerLoading.value = false
     return
   }
   
-  if (registerPassword.value.length < 6) {
-    registerError.value = 'Password must be at least 6 characters'
+  if (registerPassword.value.length < 8) {
+    registerError.value = 'Password must be at least 8 characters'
     registerLoading.value = false
     return
   }
   
   try {
-    // Note: You'll need to implement a public registration endpoint
-    // or handle user creation through an admin interface
-    registerError.value = 'Registration is not yet implemented. Please contact an administrator.'
+    const response = await makeSecureRequest(`${APIurl}/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name: registerName.value.trim(),
+        email: registerEmail.value,
+        password: registerPassword.value
+      })
+    })
+    
+    if (response.ok) {
+      const data = await response.json()
+      
+      // Clear form
+      registerName.value = ''
+      registerEmail.value = ''
+      registerPassword.value = ''
+      registerConfirm.value = ''
+      
+      // Show success message and switch to login
+      alert(data.message || 'Registration successful! Please log in.')
+      activeTab.value = 'login'
+      
+    } else {
+      // Handle different error response formats
+      let errorMessage = 'Registration failed'
+      
+      try {
+        const errorData = await response.json()
+        errorMessage = errorData.message || errorData.error || `Server error: ${response.status}`
+      } catch (jsonError) {
+        // If response is not JSON, try to get text
+        try {
+          const errorText = await response.text()
+          errorMessage = errorText || `Server error: ${response.status}`
+        } catch (textError) {
+          errorMessage = `Server error: ${response.status}`
+        }
+      }
+      
+      registerError.value = errorMessage
+      console.error('Registration failed:', response.status, errorMessage)
+    }
+    
   } catch (error) {
-    registerError.value = error.message
+    let errorMessage = 'Registration failed'
+    
+    // Check if it's a network error or other specific error types
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      errorMessage = 'Network error - please check your connection'
+    } else if (error.message) {
+      errorMessage = error.message
+    }
+    
+    registerError.value = errorMessage
     console.error('Registration error:', error)
   } finally {
     registerLoading.value = false

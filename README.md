@@ -32,9 +32,7 @@ Pasos para iniciar la App
 
 2. En la carpeta raíz ubicar el archivo `initPg_template.sh` y hacer una copia del mismo con el nombre `initPg.sh`.
 
-3. En la carpeta raíz ubicar el archivo `populateDB_template.sh` y hacer una copia del mismo con el nombre `populateDB.sh`. Una vez creado el archivo `populateDB.sh` abrirlo y cambiar el password del usuario por una password encriptada con `Bcrypt` y un salt de `10` (Preguntar a chatgpt como hacer la encriptación)
-
-4. En la carpeta `api-brain-mapper` ubicar el archivo `.env.format` y hacer una copia del mismo con el nombre `.env` (sobreescribirlo si lo pide). Una vez creado el archivo `.env` abrirlo y configura lo sig:
+3. En la carpeta `api-brain-mapper` ubicar el archivo `.env.format` y hacer una copia del mismo con el nombre `.env` (sobreescribirlo si lo pide). Una vez creado el archivo `.env` abrirlo y configura lo sig:
 ```env
 ENV_MODE=development
 
@@ -79,12 +77,11 @@ Cambia `<host_ip>` por tu ip o `localhost`.
 6. Una vez configurados todos los servicios, procede iniciar los contenedores de docker con el comando `docker compose -f docker-compose.dev.yml up`.
     > **NOTA**: El sistema ahora configurará automáticamente MinIO/S3 con los buckets necesarios, políticas y usuarios. No necesitas hacer configuración manual de S3.
 
-7. Cuando los contenedores ya estén prendidos, será hora de poblar la Base de Datos. Usando la terminal, ejecutar el comando `docker ps` y ubicar el hash del container `web-app-postgres-1`. Una vez ubicado copiarlo y ejecutar el siguiente comando: `docker exec -it {hash_copiado} /bin/sh`.
-
-8. Después de haber ejecutado el `docker exec`, ejecutar dentro de la terminal que se abrió el siguiente comando: `psql -U {DB_USER} -d {DB_NAME} -f /home/populateDB.sql`. O `docker compose -f docker-compose.dev.yml exec postgres psql -U myuser -d mydatabase -f /home/populateDB.sql`
-    > Nota: Recuerda que `{DB_USER}` y `{DB_NAME}` son variables que configuraste en el paso 1, en este caso necesitas poner su valor explicito en lugar de `{DB_USER}`.
-
-9. Después de que se haya ejecutado exitosamente el comando anterior, ejecutar `exit` para salir del contenedor de postgres.
+7. El sistema se inicializará automáticamente con las migraciones de base de datos, creando todas las tablas necesarias y un usuario SUPERADMIN por defecto.
+   - **Email**: admin@gmail.com  
+   - **Password**: Pass$612345
+   
+   > **IMPORTANTE**: Cambia la contraseña del usuario SUPERADMIN después del primer login por seguridad.
 
 ¡Listo! la aplicación ya está configurada y funcionando. Puedes acceder a:
 - **Web App**: http://localhost:3003

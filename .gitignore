@@ -33,5 +33,4 @@ coverage
 .env
 
 # Custom
-populateDB.sql
 initPg.sh

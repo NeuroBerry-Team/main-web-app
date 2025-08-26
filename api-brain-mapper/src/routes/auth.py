@@ -76,6 +76,81 @@ def addUser():
     return jsonify({"message": "user added successfully"})
 
 
+@auth.route('/register', methods=['POST'])
+def register():
+    """Public user registration endpoint"""
+    # Validate request structure - note: only need name, email, password
+    req = InputValidator.validate_json_request(
+        request, ['name', 'email', 'password']
+    )
+
+    # Validate and sanitize input fields
+    name = InputValidator.validate_name(req['name'], field_name="Name", min_length=2, max_length=100)
+    email = InputValidator.validate_email_format(req['email'])
+    password = InputValidator.validate_password(req['password'])
+    
+    # Set default role for new users (AI_USER)
+    default_role_name = "AI_USER"
+    
+    # Check if email already exists
+    try:
+        stmt = select(User).where(User.email == email)
+        result = db.session.execute(statement=stmt)
+        existing_user = result.scalar_one_or_none()
+        
+        if existing_user:
+            abort(409, 'User with this email already exists')
+    except Exception:
+        logger.exception('Error checking existing user during registration')
+        abort(500, 'Registration failed')
+
+    # Find the default role
+    try:
+        from ..models.role import Role
+        stmt = select(Role).where(Role.name == default_role_name)
+        result = db.session.execute(stmt)
+        default_role = result.scalar_one_or_none()
+        
+        if not default_role:
+            logger.error(f'Default role {default_role_name} not found')
+            abort(500, 'Registration failed - invalid role configuration')
+            
+        roleId = default_role.id
+    except Exception:
+        logger.exception('Error finding default role during registration')
+        abort(500, 'Registration failed')
+
+    # Create new user
+    try:
+        # Hash password 
+        hashed_password = hashPassword(password)
+        
+        # Create user object - using same structure as addUser
+        new_user = User(
+            name=name,
+            lastName="",  # We'll only collect name for now
+            email=email,
+            password=hashed_password,
+            roleId=roleId
+        )
+
+        # Save to database
+        db.session.add(new_user)
+        db.session.commit()
+        
+        logger.info(f'New user registered: {email}')
+        
+        # Return success (don't auto-login for security)
+        return jsonify({
+            "message": "Registration successful! Please log in with your credentials."
+        }), 201
+        
+    except Exception:
+        logger.exception('Error creating user during registration')
+        db.session.rollback()
+        abort(500, 'Registration failed')
+
+
 @auth.route('/login', methods=['POST'])
 @rate_limit_login(max_attempts=5, window_minutes=15)
 def login():

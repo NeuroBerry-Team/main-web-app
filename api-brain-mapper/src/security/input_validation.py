@@ -17,7 +17,7 @@ class InputValidator:
             valid_email = validate_email(email)
             return valid_email.email
         except EmailNotValidError:
-            abort(400, 'Invalid email format')
+            abort(400, 'Please enter a valid email address')
     
     @staticmethod
     def validate_password(password, min_length=8, max_length=128):
@@ -56,7 +56,7 @@ class InputValidator:
         
         # Only allow letters, spaces, hyphens, and apostrophes
         if not re.match(r'^[A-Za-zÀ-ÿ\s\-\']+$', name):
-            abort(400, f'{field_name} contains invalid characters')
+            abort(400, f'{field_name} can only contain letters, spaces, hyphens, and apostrophes')
         
         return name
     
@@ -78,7 +78,7 @@ class InputValidator:
                           if field not in data]
         if missing_fields:
             fields_list = ", ".join(missing_fields)
-            abort(400, f'Missing required fields: {fields_list}')
+            abort(400, f'Please provide: {fields_list}')
         
         return data
     
