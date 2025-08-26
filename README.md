@@ -98,7 +98,7 @@ Cambia `<host_ip>` por tu ip o `localhost`.
 
 ## Notas sobre la configuración automática de S3/MinIO
 
-El sistema ahora incluye configuración automática de MinIO/S3 que elimina la necesidad de configuración manual. El script `setup-minio.sh` se ejecuta automáticamente cuando inicia el contenedor `mc` y realiza las siguientes tareas:
+El sistema ahora incluye configuración automática de MinIO/S3 que elimina la necesidad de configuración manual. El script `setup-minio.sh` se ejecutara automáticamente cuando inicia el contenedor `mc` y realiza las siguientes tareas:
 
 1. **Crea buckets automáticamente**: `dataset` e `inferences`
 2. **Configura acceso público**: Establece permisos de lectura anónima para ambos buckets
