@@ -244,19 +244,9 @@ docker compose -f docker-compose.dev.yml exec [servicio] /bin/bash
 
 ## 📚 Documentación Adicional
 
-- **Guía de Usuario**: Consultar la sección "Proyecto" en la aplicación web
+- **Guía de Usuario**: Consultar la sección "Proyecto" en la aplicación web (TBD)
 - **API Reference**: Disponible en `http://localhost:5000/docs` (cuando esté implementado)
 - **Base de Datos**: Esquema disponible en `migrations/versions/`
-
-## 🤝 Contribución
-
-Para contribuir al proyecto:
-
-1. Fork el repositorio
-2. Crear una rama para nuevas características (`git checkout -b feature/nueva-caracteristica`)
-3. Commit los cambios (`git commit -am 'Agregar nueva característica'`)
-4. Push a la rama (`git push origin feature/nueva-caracteristica`)
-5. Crear un Pull Request
 
 ## 📄 Licencia
 
