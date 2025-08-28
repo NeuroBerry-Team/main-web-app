@@ -99,8 +99,8 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useAuth } from '../composables/use_auth.js'
-import { useInference } from '../composables/send_inference.js'
+import { useAuth } from '../../composables/use_auth.js'
+import { useInference } from '../../composables/send_inference.js'
 
 // Authentication
 const { isLoggedIn, user, loading: authLoading, checkAuthStatus } = useAuth()

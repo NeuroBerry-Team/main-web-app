@@ -1,11 +1,12 @@
 <script setup>
-import { RouterLink, RouterView } from 'vue-router'
+import { RouterView } from 'vue-router'
 import { onMounted } from 'vue'
 import { useAuth } from './composables/use_auth.js'
 import { useCSRF } from './composables/use_csrf.js'
+import NavBar from './components/NavBar.vue'
 
 // Use authentication composable
-const { isLoggedIn, user, isAdmin, checkAuthStatus, logout } = useAuth()
+const { checkAuthStatus } = useAuth()
 
 // Use CSRF protection
 const { initializeCSRF } = useCSRF()
@@ -15,39 +16,13 @@ onMounted(async () => {
   await initializeCSRF()  // Initialize CSRF first
   await checkAuthStatus()
 })
-
-const handleLogout = async () => {
-  if (confirm('Are you sure you want to logout?')) {
-    await logout()
-  }
-}
 </script>
 
 <template>
   <div id="app">
     <header>
       <div class="header-content">
-
-        <!-- MENU -->
-        <nav>
-          <RouterLink to="/" class="nav-button">Inicio</RouterLink>
-          <RouterLink to="/about" class="nav-button">Proyecto</RouterLink>
-          <RouterLink to="/database" class="nav-button">Database</RouterLink>
-          <RouterLink to="/etiquetado" class="nav-button">Etiquetado</RouterLink>
-          
-          <!-- Show application link only if logged in -->
-          <RouterLink v-if="isLoggedIn" to="/iatest" class="nav-button">Aplicación</RouterLink>
-          
-          <!-- Show admin features if user is admin -->
-          <RouterLink v-if="isAdmin" to="/admin" class="nav-button admin-link">Admin</RouterLink>
-          
-          <!-- Authentication links -->
-          <RouterLink v-if="!isLoggedIn" to="/login" class="nav-button login-button">Login</RouterLink>
-          <button v-if="isLoggedIn" @click="handleLogout" class="nav-button logout-button">
-            Logout
-            <span v-if="user?.role" class="user-role">({{ user.role }})</span>
-          </button>
-        </nav>
+        <NavBar />
       </div>
     </header>
 

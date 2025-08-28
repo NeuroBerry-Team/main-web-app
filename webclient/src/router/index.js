@@ -1,8 +1,4 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
-import Test from '../views/IATest.vue'
-import Database from '../views/Database.vue'
-import Login from '../views/Login.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -10,16 +6,13 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
-      component: HomeView,
+      component: () => import('../views/HomeView.vue'),
     },
     {
       path: '/about',
       name: 'about',
       component: () => import('../views/AboutView.vue'),
     },
-    { path: '/iatest',
-      name: 'IATest',
-      component: () => import('../views/IATest.vue') },
     { path: '/etiquetado',
       name: 'Etiquetado',
       component: () => import('../views/Etiquetado.vue') },
@@ -29,6 +22,23 @@ const router = createRouter({
     { path: '/login',
       name: 'Login',
       component: () => import('../views/Login.vue') },
+    { 
+      path: '/AI',
+      name: 'AI',
+      component: () => import('../views/AI/AI_Index.vue'), 
+      children:[
+        {
+          path: 'train',
+          name: 'AITrain',
+          component: () => import('../views/AI/AI_Train.vue')
+        },
+        {
+          path: 'inference',
+          name: 'AIInference',
+          component: () => import('../views/AI/AI_Inference.vue')
+        }
+      ]
+    }
   ],
 })
 

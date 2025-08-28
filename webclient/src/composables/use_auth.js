@@ -105,7 +105,7 @@ export function useAuth() {
 
   // Computed properties
   const isAdmin = computed(() => {
-    return user.value?.role === 'ADMIN';
+    return user.value?.role === 'ADMIN' || user.value?.role === 'SUPERADMIN';
   });
 
   const isAuthenticated = computed(() => isLoggedIn.value);
