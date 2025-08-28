@@ -7,3 +7,27 @@
   margin: 0 auto;
   font-weight: normal;
 }
+
+@keyframes gradient-x {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.animate-gradient-x {
+  background-size: 200% 200%;
+  animation: gradient-x 6s ease infinite;
+}
+
+@layer components {
+  .nav-btn {
+    @apply px-6 py-2 rounded-full font-medium text-base transition-all duration-300 shadow-md text-center;
+    @apply bg-white text-red-700; /* solid background, colored text */
+    @apply hover:bg-red-100 hover:-translate-y-0.5 hover:scale-110 hover:shadow-lg;
+  }
+
+  .nav-btn:hover {
+    box-shadow: 0 0 12px rgba(255,255,255,0.6);
+  }
+}
+
+

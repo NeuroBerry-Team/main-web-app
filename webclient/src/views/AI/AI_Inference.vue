@@ -88,11 +88,11 @@
         </div>
       </section>
       
-      <!-- Debug section - only show in development -->
-      <section v-if="debug && isDevelopment" class="debug-section">
+      <!-- Debug section -->
+      <!-- <section v-if="debug && isDevelopment" class="debug-section">
         <h3>Información de Depuración</h3>
         <pre class="debug-content">{{ debug }}</pre>
-      </section>
+      </section> -->
     </div>
   </div>
 </template>
@@ -133,8 +133,6 @@ function onFileChange(event) {
   if (file && file.type.startsWith("image/")) {
     previewImage.value = URL.createObjectURL(file)
     selectedFile.value = file
-    // Reset previous results
-    resetResults()
   } else if (file) {
     alert('Por favor selecciona un archivo de imagen válido (JPG, PNG, WebP)')
   }
@@ -146,12 +144,6 @@ function resetImage() {
   if (fileInput.value) {
     fileInput.value.value = ""
   }
-  resetResults()
-}
-
-function resetResults() {
-  // Reset result state but keep the useInference reactive state
-  // The composable will handle clearing its own state
 }
 
 async function startInference() {

@@ -1,60 +1,129 @@
-<script setup>
-import { RouterLink } from 'vue-router'
-import { useAuth } from '../composables/use_auth.js'
-const { isLoggedIn, user, isAdmin, logout } = useAuth()
-
-const handleLogout = async () => {
-  if (confirm('Are you sure you want to logout?')) {
-    await logout()
-  }
-}
-</script>
 <template>
-  <nav class="flex flex-wrap gap-4 items-center justify-center">
-    <RouterLink
-      to="/"
-      class="px-6 py-2 rounded-full bg-white/10 text-white font-medium text-base transition-all duration-300 shadow-md text-center hover:bg-white/30 hover:-translate-y-0.5 hover:scale-105"
-    >Inicio</RouterLink>
-    <RouterLink
-      to="/about"
-      class="px-6 py-2 rounded-full bg-white/10 text-white font-medium text-base transition-all duration-300 shadow-md text-center hover:bg-white/30 hover:-translate-y-0.5 hover:scale-105"
-    >Proyecto</RouterLink>
-    <RouterLink
-      to="/database"
-      class="px-6 py-2 rounded-full bg-white/10 text-white font-medium text-base transition-all duration-300 shadow-md text-center hover:bg-white/30 hover:-translate-y-0.5 hover:scale-105"
-    >Database</RouterLink>
-    <RouterLink
-      to="/etiquetado"
-      class="px-6 py-2 rounded-full bg-white/10 text-white font-medium text-base transition-all duration-300 shadow-md text-center hover:bg-white/30 hover:-translate-y-0.5 hover:scale-105"
-    >Etiquetado</RouterLink>
+  <nav :class="['w-full flex items-center justify-between top-0 z-50 transition-all duration-500',
+                scrolled ? 'bg-red-700/90 backdrop-blur-md shadow-md' : 'bg-transparent']">
+    <!-- Hamburger -->
+    <div class="flex-shrink-0 md:hidden">
+      <button
+        class="cursor-pointer p-1 text-white transition-transform duration-300 hover:scale-110"
+        @click="menuOpen = !menuOpen"
+        aria-label="Toggle menu"
+      >
+        <span class="text-3xl">☰</span>
+      </button>
+    </div>
 
-    <!-- Show application link only if logged in -->
-    <RouterLink
-      v-if="isLoggedIn"
-      to="/AI"
-      class="px-6 py-2 rounded-full bg-blue-600/20 text-white font-medium text-base transition-all duration-300 shadow-md text-center hover:bg-blue-600/40 hover:-translate-y-0.5 hover:scale-105"
-    >Aplicación</RouterLink>
+    <!-- Menu (desktop inline, mobile dropdown) -->
+    <transition
+      enter-active-class="transition ease-out duration-300"
+      enter-from-class="opacity-0 -translate-y-4"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition ease-in duration-200"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 -translate-y-4"
+    >
+      <div
+          v-if="showMenu"
+          :class="[
+            !isDesktop
+              ? 'flex absolute left-0 top-20 w-full z-40 py-4 flex-col items-center gap-4 bg-gradient-to-b from-[rgba(185,28,28,0.8)] via-[rgba(220,38,38,0.7)] to-[rgba(185,28,28,0.8)] rounded-xl shadow-lg'
+              : 'hidden md:flex md:items-center md:gap-4 md:flex-row md:static md:bg-transparent'
+          ]"
+        >
+        <RouterLink
+          to="/"
+          class="nav-btn"
+          @click="menuOpen = false"
+        >Inicio</RouterLink>
+        <RouterLink
+          to="/about"
+          class="nav-btn"
+          @click="menuOpen = false"
+        >Proyecto</RouterLink>
+        <RouterLink
+          to="/database"
+          class="nav-btn"
+          @click="menuOpen = false"
+        >Database</RouterLink>
+        <RouterLink
+          to="/etiquetado"
+          class="nav-btn"
+          @click="menuOpen = false"
+        >Etiquetado</RouterLink>
+        <RouterLink
+          v-if="isLoggedIn"
+          to="/AI"
+          class="nav-btn bg-blue-600 text-white hover:bg-blue-700"
+          @click="menuOpen = false"
+        >Aplicación</RouterLink>
+        <RouterLink
+          v-if="isAdmin"
+          to="/admin"
+          class="nav-btn bg-purple-600 text-white hover:bg-purple-700"
+          @click="menuOpen = false"
+        >Admin</RouterLink>
+      </div>
+    </transition>
 
-    <!-- Show admin features if user is admin or superadmin -->
-    <RouterLink
-      v-if="isAdmin"
-      to="/admin"
-      class="px-6 py-2 rounded-full bg-purple-600/20 text-white font-medium text-base transition-all duration-300 shadow-md text-center hover:bg-purple-600/40 hover:-translate-y-0.5 hover:scale-105"
-    >Admin</RouterLink>
-
-    <!-- Authentication links -->
+    <!-- Login / Logout -->
     <RouterLink
       v-if="!isLoggedIn"
       to="/login"
-      class="px-6 py-2 rounded-full bg-green-600/20 text-white font-medium text-base transition-all duration-300 shadow-md text-center hover:bg-green-600/40 hover:-translate-y-0.5 hover:scale-105"
+      class="nav-btn bg-green-600 text-white hover:bg-green-700"
+      @click="menuOpen = false"
     >Login</RouterLink>
+
     <button
       v-if="isLoggedIn"
       @click="handleLogout"
-      class="px-6 py-2 rounded-full bg-red-600/20 text-white font-medium text-base transition-all duration-300 shadow-md text-center hover:bg-red-600/40 hover:-translate-y-0.5 hover:scale-105 flex items-center gap-2"
+      class="nav-btn bg-red-600 text-white hover:bg-red-700 flex items-center gap-2"
     >
       Logout
       <span v-if="user?.role" class="ml-1 text-xs bg-white/20 px-2 py-1 rounded">{{ user.role }}</span>
     </button>
   </nav>
 </template>
+
+<script setup>
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { RouterLink } from "vue-router";
+import { useAuth } from "../composables/use_auth.js";
+
+const { isLoggedIn, user, isAdmin, logout } = useAuth();
+const menuOpen = ref(false);
+const scrolled = ref(false);
+
+// Detect desktop size
+const isDesktop = ref(window.matchMedia("(min-width: 768px)").matches);
+
+function updateIsDesktop() {
+  isDesktop.value = window.matchMedia("(min-width: 768px)").matches;
+}
+
+function handleScroll() {
+  scrolled.value = window.scrollY > 10;
+}
+
+const showMenu = computed(() => isDesktop.value || menuOpen.value);
+
+const handleLogout = async () => {
+  if (confirm("Are you sure you want to logout?")) {
+    await logout();
+  }
+  menuOpen.value = false;
+};
+
+onMounted(() => {
+  window.addEventListener("scroll", handleScroll);
+  window.addEventListener("resize", updateIsDesktop);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("scroll", handleScroll);
+  window.removeEventListener("resize", updateIsDesktop);
+});
+
+// Close menu if switching to desktop
+watch(isDesktop, (val) => {
+  if (val) menuOpen.value = false;
+});
+</script>
