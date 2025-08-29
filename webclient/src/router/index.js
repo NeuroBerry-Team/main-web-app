@@ -38,6 +38,45 @@ const router = createRouter({
           component: () => import('../views/AI/AI_Inference.vue')
         }
       ]
+    },
+    {
+      path: '/profile',
+      name: 'Profile',
+      component: () => import('../views/user/Profile.vue'),
+      children:[
+        {
+          path: 'settings',
+          name: 'ProfileSettings',
+          component: () => import('../views/user/ProfileSettings.vue')
+        },
+        {
+          path: 'activity', // General user activity. Holds a summary of it all.
+          name: 'ProfileActivity',
+          component: () => import('../views/user/ProfileActivity.vue'),
+          children:[
+            {
+              path: 'metrics',
+              name: 'ProfileActivityMetrics',
+              component: () => import('../views/user/ProfileActivityMetrics.vue')
+            },
+            {
+              path: 'logs',
+              name: 'ProfileActivityLogs',
+              component: () => import('../views/user/ProfileActivityLogs.vue')
+            },
+            {
+              path: 'inferences',
+              name: 'ProfileActivityInferences',
+              component: () => import('../views/user/ProfileActivityInferences.vue')
+            }
+          ]
+        }
+      ]
+    },
+    {
+      path: '/admin',
+      name: 'Admin',
+      component: () => import('../views/admin/AdminMain.vue')
     }
   ],
 })
