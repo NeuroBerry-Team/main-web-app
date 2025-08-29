@@ -240,6 +240,9 @@ docker compose -f docker-compose.dev.yml up -d --build
 
 # Acceder a un contenedor
 docker compose -f docker-compose.dev.yml exec [servicio] /bin/bash
+
+# Acceder a la base de datos
+docker exec -it web-app-main-postgres-1 psql -U myuser -d mydatabase
 ```
 
 ## 📚 Documentación Adicional

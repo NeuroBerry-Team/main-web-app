@@ -18,14 +18,24 @@ load_dotenv()
 from .routes.auth import auth
 from .routes.inferences import inferences
 
+# Import models to ensure they're registered with SQLAlchemy
+from .models.user import User  
+from .models.role import Role  
+from .models.model import Model  
+from .models.inference import Inference  
+from .models.dataset import Dataset  
+from .models.model_dataset import ModelDataset  
+from .models.audit_log import AuditLog 
+
 migrate = Migrate()  # Creates an instance of migrate without initialization
+
 
 def create_app():
     # Create Flask app
     app = Flask(__name__)
 
     # Configure app depending on environment mode
-    if(os.getenv('ENV_MODE') == 'production'):
+    if (os.getenv('ENV_MODE') == 'production'):
         from config.production import ProductionConfig
         app.config.from_object(ProductionConfig)
     else:
@@ -41,7 +51,7 @@ def create_app():
         db.session.close()
         db.session.remove()
 
-    #Setup serializer
+    # Setup serializer
     ma.init_app(app)
 
     # Configure migrations

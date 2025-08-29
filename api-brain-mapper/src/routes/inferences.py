@@ -137,15 +137,12 @@ def generateInference():
         logger.exception(f'Error generating inference for {imgObjectKey}')
         abort(500, 'Error generating inference')
 
-    # TODO: Get the login working
-    # Temp userID for auth disabled
     user_id = getattr(g, 'uid', None)
-    if user_id is None:
-        user_id = 1
 
     # Make new instance of inference model
     new_inference = Inference(
         userId=user_id,
+        modelId=1,  # TODO: Should be set on the web app, for now it's the default model 1
         name=name,
         baseImageUrl=baseImageUrl,
         generatedImageUrl=generatedImageUrl,
