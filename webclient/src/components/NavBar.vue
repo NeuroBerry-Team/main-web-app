@@ -80,7 +80,16 @@
       Logout
       <span v-if="user?.role" class="ml-1 text-xs bg-white/20 px-2 py-1 rounded">{{ user.role }}</span>
     </button>
-  </nav>
+
+    <!-- Profile -->
+    <RouterLink
+      v-if="isLoggedIn"
+      to="/profile"
+      class="nav-btn"
+      @click="menuOpen = false"
+    >Profile</RouterLink>
+
+</nav>
 </template>
 
 <script setup>
