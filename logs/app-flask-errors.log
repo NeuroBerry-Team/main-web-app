@@ -459,3 +459,11 @@ Traceback (most recent call last):
   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/sql/schema.py", line 3182, in _resolve_column
     raise exc.NoReferencedTableError(
 sqlalchemy.exc.NoReferencedTableError: Foreign key associated with column 'inferences.modelId' could not find table 'models' with which to generate a foreign key to target column 'id'
+[2025-08-29: 05:22:47] [models] > Error starting model training: 'InputValidator' object has no attribute 'validate_string' >> None
+[2025-08-29: 05:22:47] [audit] > Error logging audit action: 'InputValidator' object has no attribute 'validate_string' >> None
+[2025-08-29: 05:26:21] [models] > Error starting model training: (psycopg2.errors.UniqueViolation) duplicate key value violates unique constraint "models_pkey"
+DETAIL:  Key (id)=(1) already exists.
+
+[SQL: INSERT INTO models (name, version, description, "modelType", "createdOn", "updatedOn") VALUES (%(name)s, %(version)s, %(description)s, %(modelType)s, %(createdOn)s, %(updatedOn)s) RETURNING models.id]
+[parameters: {'name': 'xdxd', 'version': '1.0', 'description': 'xdxd', 'modelType': 'YOLOv8_m', 'createdOn': datetime.datetime(2025, 8, 29, 5, 26, 21, 944139), 'updatedOn': datetime.datetime(2025, 8, 29, 5, 26, 21, 944142)}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj) >> None

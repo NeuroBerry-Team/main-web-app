@@ -17,6 +17,9 @@ load_dotenv()
 # Import routers
 from .routes.auth import auth
 from .routes.inferences import inferences
+from .routes.datasets import datasets
+from .routes.models import models
+from .routes.audit import audit
 
 # Import models to ensure they're registered with SQLAlchemy
 from .models.user import User  
@@ -75,6 +78,9 @@ def create_app():
     # Register routers blueprints
     app.register_blueprint(auth)
     app.register_blueprint(inferences)
+    app.register_blueprint(datasets)
+    app.register_blueprint(models)
+    app.register_blueprint(audit)
 
     # Setup cors policies
     app.config['CORS_EXPOSE_HEADERS'] = ['Content-Type']
