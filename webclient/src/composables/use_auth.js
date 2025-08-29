@@ -34,11 +34,11 @@ export function useAuth() {
           user.value = null;
         }
       } else if (response.status === 401) {
-        // 401 is expected when not logged in - not an error
+        // 401 is expected when not logged in
         isLoggedIn.value = false;
         user.value = null;
       } else {
-        // Other status codes (500, etc.) are actual errors
+        // Other status codes (500, etc.)
         console.error(`Auth check failed with status: ${response.status}`);
         isLoggedIn.value = false;
         user.value = null;
