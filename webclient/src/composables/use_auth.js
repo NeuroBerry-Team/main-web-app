@@ -108,6 +108,10 @@ export function useAuth() {
     return user.value?.role === 'ADMIN' || user.value?.role === 'SUPERADMIN';
   });
 
+  const isSuperAdmin = computed(() => {
+    return user.value?.role === 'SUPERADMIN';
+  });
+
   const isAuthenticated = computed(() => isLoggedIn.value);
 
   return {
@@ -119,7 +123,8 @@ export function useAuth() {
     
     // Computed
     isAdmin,
-    
+    isSuperAdmin,
+
     // Methods
     checkAuthStatus,
     getUserDetails,
