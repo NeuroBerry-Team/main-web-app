@@ -467,3 +467,112 @@ DETAIL:  Key (id)=(1) already exists.
 [SQL: INSERT INTO models (name, version, description, "modelType", "createdOn", "updatedOn") VALUES (%(name)s, %(version)s, %(description)s, %(modelType)s, %(createdOn)s, %(updatedOn)s) RETURNING models.id]
 [parameters: {'name': 'xdxd', 'version': '1.0', 'description': 'xdxd', 'modelType': 'YOLOv8_m', 'createdOn': datetime.datetime(2025, 8, 29, 5, 26, 21, 944139), 'updatedOn': datetime.datetime(2025, 8, 29, 5, 26, 21, 944142)}]
 (Background on this error at: https://sqlalche.me/e/20/gkpj) >> None
+[2025-08-30: 00:33:45] [inferences] > Error generating inference for 1/7ce2561c984643e4b46289810f798275/original_img.jpg >> (<class 'requests.exceptions.HTTPError'>, HTTPError('404 Client Error: Not Found for url: http://192.168.100.80:8080/inferencia/inferencia'), <traceback object at 0x7ff9ccfebc00>)
+Traceback (most recent call last):
+  File "/app/src/routes/inferences.py", line 134, in generateInference
+    json_response = nnClient.generateInference(payload)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/src/cloudServices/nnApiConnections.py", line 44, in generateInference
+    response.raise_for_status()
+  File "/usr/local/lib/python3.11/site-packages/requests/models.py", line 1024, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 404 Client Error: Not Found for url: http://192.168.100.80:8080/inferencia/inferencia
+[2025-08-30: 22:38:00] [dataset_sync] > Error during dataset synchronization: (psycopg2.errors.UniqueViolation) duplicate key value violates unique constraint "datasets_pkey"
+DETAIL:  Key (id)=(1) already exists.
+
+[SQL: INSERT INTO datasets (name, description, "datasetType", "s3Path", "createdBy", "createdOn") VALUES (%(name)s, %(description)s, %(datasetType)s, %(s3Path)s, %(createdBy)s, %(createdOn)s) RETURNING datasets.id]
+[parameters: {'name': 'datasetv2', 'description': 'Auto-synced dataset from MinIO: datasetv2.zip', 'datasetType': 'YOLO', 's3Path': 's3://dataset/datasetv2.zip', 'createdBy': 1, 'createdOn': datetime.datetime(2025, 8, 30, 22, 38, 0, 366818)}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj) >> None
+[2025-08-30: 22:38:19] [dataset_sync] > Error during dataset synchronization: (psycopg2.errors.UniqueViolation) duplicate key value violates unique constraint "datasets_pkey"
+DETAIL:  Key (id)=(2) already exists.
+
+[SQL: INSERT INTO datasets (name, description, "datasetType", "s3Path", "createdBy", "createdOn") VALUES (%(name)s, %(description)s, %(datasetType)s, %(s3Path)s, %(createdBy)s, %(createdOn)s) RETURNING datasets.id]
+[parameters: {'name': 'datasetv2', 'description': 'Auto-synced dataset from MinIO: datasetv2.zip', 'datasetType': 'YOLO', 's3Path': 's3://dataset/datasetv2.zip', 'createdBy': 1, 'createdOn': datetime.datetime(2025, 8, 30, 22, 38, 19, 424304)}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj) >> None
+[2025-08-30: 22:38:26] [dataset_sync] > Error during dataset synchronization: (psycopg2.errors.UniqueViolation) duplicate key value violates unique constraint "datasets_pkey"
+DETAIL:  Key (id)=(3) already exists.
+
+[SQL: INSERT INTO datasets (name, description, "datasetType", "s3Path", "createdBy", "createdOn") VALUES (%(name)s, %(description)s, %(datasetType)s, %(s3Path)s, %(createdBy)s, %(createdOn)s) RETURNING datasets.id]
+[parameters: {'name': 'datasetv2', 'description': 'Auto-synced dataset from MinIO: datasetv2.zip', 'datasetType': 'YOLO', 's3Path': 's3://dataset/datasetv2.zip', 'createdBy': 1, 'createdOn': datetime.datetime(2025, 8, 30, 22, 38, 26, 438698)}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj) >> None
+[2025-08-30: 22:44:04] [dataset_sync] > Error during dataset synchronization: (psycopg2.errors.UndefinedColumn) column datasets.active does not exist
+LINE 1: ...y", datasets."createdOn" AS "datasets_createdOn", datasets.a...
+                                                             ^
+
+[SQL: SELECT datasets.id AS datasets_id, datasets.name AS datasets_name, datasets.description AS datasets_description, datasets."datasetType" AS "datasets_datasetType", datasets."s3Path" AS "datasets_s3Path", datasets."createdBy" AS "datasets_createdBy", datasets."createdOn" AS "datasets_createdOn", datasets.active AS datasets_active 
+FROM datasets]
+(Background on this error at: https://sqlalche.me/e/20/f405) >> None
+[2025-08-30: 22:44:12] [dataset_sync] > Error during dataset synchronization: (psycopg2.errors.UndefinedColumn) column datasets.active does not exist
+LINE 1: ...y", datasets."createdOn" AS "datasets_createdOn", datasets.a...
+                                                             ^
+
+[SQL: SELECT datasets.id AS datasets_id, datasets.name AS datasets_name, datasets.description AS datasets_description, datasets."datasetType" AS "datasets_datasetType", datasets."s3Path" AS "datasets_s3Path", datasets."createdBy" AS "datasets_createdBy", datasets."createdOn" AS "datasets_createdOn", datasets.active AS datasets_active 
+FROM datasets]
+(Background on this error at: https://sqlalche.me/e/20/f405) >> None
+[2025-08-30: 22:44:19] [dataset_sync] > Error during dataset synchronization: (psycopg2.errors.UndefinedColumn) column datasets.active does not exist
+LINE 1: ...y", datasets."createdOn" AS "datasets_createdOn", datasets.a...
+                                                             ^
+
+[SQL: SELECT datasets.id AS datasets_id, datasets.name AS datasets_name, datasets.description AS datasets_description, datasets."datasetType" AS "datasets_datasetType", datasets."s3Path" AS "datasets_s3Path", datasets."createdBy" AS "datasets_createdBy", datasets."createdOn" AS "datasets_createdOn", datasets.active AS datasets_active 
+FROM datasets]
+(Background on this error at: https://sqlalche.me/e/20/f405) >> None
+[2025-08-30: 22:44:25] [dataset_sync] > Error during dataset synchronization: (psycopg2.errors.UndefinedColumn) column datasets.active does not exist
+LINE 1: ...y", datasets."createdOn" AS "datasets_createdOn", datasets.a...
+                                                             ^
+
+[SQL: SELECT datasets.id AS datasets_id, datasets.name AS datasets_name, datasets.description AS datasets_description, datasets."datasetType" AS "datasets_datasetType", datasets."s3Path" AS "datasets_s3Path", datasets."createdBy" AS "datasets_createdBy", datasets."createdOn" AS "datasets_createdOn", datasets.active AS datasets_active 
+FROM datasets]
+(Background on this error at: https://sqlalche.me/e/20/f405) >> None
+[2025-08-30: 22:44:46] [dataset_sync] > Error during dataset synchronization: (psycopg2.errors.UndefinedColumn) column datasets.active does not exist
+LINE 1: ...y", datasets."createdOn" AS "datasets_createdOn", datasets.a...
+                                                             ^
+
+[SQL: SELECT datasets.id AS datasets_id, datasets.name AS datasets_name, datasets.description AS datasets_description, datasets."datasetType" AS "datasets_datasetType", datasets."s3Path" AS "datasets_s3Path", datasets."createdBy" AS "datasets_createdBy", datasets."createdOn" AS "datasets_createdOn", datasets.active AS datasets_active 
+FROM datasets]
+(Background on this error at: https://sqlalche.me/e/20/f405) >> None
+[2025-08-30: 22:44:53] [dataset_sync] > Error during dataset synchronization: (psycopg2.errors.UndefinedColumn) column datasets.active does not exist
+LINE 1: ...y", datasets."createdOn" AS "datasets_createdOn", datasets.a...
+                                                             ^
+
+[SQL: SELECT datasets.id AS datasets_id, datasets.name AS datasets_name, datasets.description AS datasets_description, datasets."datasetType" AS "datasets_datasetType", datasets."s3Path" AS "datasets_s3Path", datasets."createdBy" AS "datasets_createdBy", datasets."createdOn" AS "datasets_createdOn", datasets.active AS datasets_active 
+FROM datasets]
+(Background on this error at: https://sqlalche.me/e/20/f405) >> None
+[2025-08-30: 22:44:59] [dataset_sync] > Error during dataset synchronization: (psycopg2.errors.UndefinedColumn) column datasets.active does not exist
+LINE 1: ...y", datasets."createdOn" AS "datasets_createdOn", datasets.a...
+                                                             ^
+
+[SQL: SELECT datasets.id AS datasets_id, datasets.name AS datasets_name, datasets.description AS datasets_description, datasets."datasetType" AS "datasets_datasetType", datasets."s3Path" AS "datasets_s3Path", datasets."createdBy" AS "datasets_createdBy", datasets."createdOn" AS "datasets_createdOn", datasets.active AS datasets_active 
+FROM datasets]
+(Background on this error at: https://sqlalche.me/e/20/f405) >> None
+[2025-08-30: 22:45:16] [dataset_sync] > Error during dataset synchronization: (psycopg2.errors.UndefinedColumn) column datasets.active does not exist
+LINE 1: ...y", datasets."createdOn" AS "datasets_createdOn", datasets.a...
+                                                             ^
+
+[SQL: SELECT datasets.id AS datasets_id, datasets.name AS datasets_name, datasets.description AS datasets_description, datasets."datasetType" AS "datasets_datasetType", datasets."s3Path" AS "datasets_s3Path", datasets."createdBy" AS "datasets_createdBy", datasets."createdOn" AS "datasets_createdOn", datasets.active AS datasets_active 
+FROM datasets]
+(Background on this error at: https://sqlalche.me/e/20/f405) >> None
+[2025-08-30: 22:56:31] [dataset_sync] > Error during dataset synchronization: (psycopg2.errors.UndefinedColumn) column datasets.active does not exist
+LINE 1: ...y", datasets."createdOn" AS "datasets_createdOn", datasets.a...
+                                                             ^
+
+[SQL: SELECT datasets.id AS datasets_id, datasets.name AS datasets_name, datasets.description AS datasets_description, datasets."datasetType" AS "datasets_datasetType", datasets."s3Path" AS "datasets_s3Path", datasets."createdBy" AS "datasets_createdBy", datasets."createdOn" AS "datasets_createdOn", datasets.active AS datasets_active 
+FROM datasets]
+(Background on this error at: https://sqlalche.me/e/20/f405) >> None
+[2025-08-30: 22:56:33] [dataset_sync] > Error during dataset synchronization: (psycopg2.errors.UndefinedColumn) column datasets.active does not exist
+LINE 1: ...y", datasets."createdOn" AS "datasets_createdOn", datasets.a...
+                                                             ^
+
+[SQL: SELECT datasets.id AS datasets_id, datasets.name AS datasets_name, datasets.description AS datasets_description, datasets."datasetType" AS "datasets_datasetType", datasets."s3Path" AS "datasets_s3Path", datasets."createdBy" AS "datasets_createdBy", datasets."createdOn" AS "datasets_createdOn", datasets.active AS datasets_active 
+FROM datasets]
+(Background on this error at: https://sqlalche.me/e/20/f405) >> None
+[2025-08-30: 22:57:44] [dataset_sync] > Error during dataset synchronization: (psycopg2.errors.UndefinedColumn) column datasets.active does not exist
+LINE 1: ...y", datasets."createdOn" AS "datasets_createdOn", datasets.a...
+                                                             ^
+
+[SQL: SELECT datasets.id AS datasets_id, datasets.name AS datasets_name, datasets.description AS datasets_description, datasets."datasetType" AS "datasets_datasetType", datasets."s3Path" AS "datasets_s3Path", datasets."createdBy" AS "datasets_createdBy", datasets."createdOn" AS "datasets_createdOn", datasets.active AS datasets_active 
+FROM datasets]
+(Background on this error at: https://sqlalche.me/e/20/f405) >> None
+[2025-08-30: 22:58:27] [dataset_sync] > Error accessing MinIO bucket 'dataset': S3 operation failed; code: InvalidAccessKeyId, message: The Access Key Id you provided does not exist in our records., resource: /dataset, request_id: 1860AD945A4908B1, host_id: 411bc421bd2f80bc9878e776fea40bf4f4a112865b490a39fb326fa1e5ad1a8e, bucket_name: dataset >> None
+[2025-08-30: 22:58:29] [dataset_sync] > Error accessing MinIO bucket 'dataset': S3 operation failed; code: InvalidAccessKeyId, message: The Access Key Id you provided does not exist in our records., resource: /dataset, request_id: 1860AD94CAF580F0, host_id: 411bc421bd2f80bc9878e776fea40bf4f4a112865b490a39fb326fa1e5ad1a8e, bucket_name: dataset >> None
+[2025-08-30: 22:58:30] [dataset_sync] > Error accessing MinIO bucket 'dataset': S3 operation failed; code: InvalidAccessKeyId, message: The Access Key Id you provided does not exist in our records., resource: /dataset, request_id: 1860AD9501B518C2, host_id: 411bc421bd2f80bc9878e776fea40bf4f4a112865b490a39fb326fa1e5ad1a8e, bucket_name: dataset >> None
+[2025-08-30: 22:58:30] [dataset_sync] > Error accessing MinIO bucket 'dataset': S3 operation failed; code: InvalidAccessKeyId, message: The Access Key Id you provided does not exist in our records., resource: /dataset, request_id: 1860AD952C28FA6E, host_id: 411bc421bd2f80bc9878e776fea40bf4f4a112865b490a39fb326fa1e5ad1a8e, bucket_name: dataset >> None

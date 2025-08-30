@@ -115,5 +115,13 @@ def create_app():
          supports_credentials=True,
          expose_headers=['Content-Type'])
 
+    # Initialize dataset synchronization on startup
+    with app.app_context():
+        try:
+            from .services.dataset_sync import sync_datasets_with_minio
+            sync_datasets_with_minio()
+        except Exception as e:
+            print(f"Warning: Failed to sync datasets on startup: {e}")
+
     print('Runing apppp')
     return app

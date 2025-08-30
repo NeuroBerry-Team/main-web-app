@@ -306,7 +306,7 @@
           <div class="bg-white rounded-lg p-4">
             <h4 class="font-semibold text-blue-700 mb-2">Almacenamiento Automático</h4>
             <p class="text-sm text-gray-600">
-              Los modelos entrenados se guardan automáticamente en la base de datos.
+              Los modelos entrenados se guardan automáticamente en el sistema de archivos.
             </p>
           </div>
         </div>

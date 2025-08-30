@@ -34,3 +34,5 @@ coverage
 
 # Custom
 initPg.sh
+
+datasets/

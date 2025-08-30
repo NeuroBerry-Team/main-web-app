@@ -1,3 +1,5 @@
+import os
+import requests
 from datetime import datetime
 from flask import Blueprint, request, jsonify, abort, g
 from logs.logger import logger
@@ -7,6 +9,13 @@ from ..models.model import Model
 from ..models.dataset import Dataset
 from ..security.decorators_utils import auth_required
 from ..security.input_validation import InputValidator
+from ..cloudServices.nnApiConnections import NnAPIClient
+
+# Instantiate a NnAPIClient
+nnClient = NnAPIClient(
+    base_url=os.getenv('NN_API_HOST'),
+    secret_key=os.getenv('NN_API_SECRET_KEY'),
+)
 
 # Define router prefix
 models = Blueprint('models', __name__, url_prefix='/models')
@@ -152,24 +161,52 @@ def trainModel():
 
         # Log audits are done through vite composable
 
-        # TODO: Implement the training
+        # Prepare training data for NN API
+        training_data = {
+            'modelId': new_model.id,
+            'modelName': model_name,
+            'modelType': data.get('modelType', 'YOLOv8_m'),
+            'datasetId': data['datasetId'],
+            'datasetPath': dataset.s3Path,
+            'trainingParams': {
+                'epochs': epochs,
+                'imageSize': image_size,
+                'batchSize': batch_size,
+                'learningRate': learning_rate,
+                'patience': patience
+            }
+        }
 
-        # Placeholder for NN API call
+        # Call NN API to start training
         try:
-            # For now, simulate a successful response
-            timestamp = int(datetime.utcnow().timestamp())
-            mock_job_id = f"job_{new_model.id}_{timestamp}"
-
+            training_response = nnClient.requestTraining(training_data)
+            
+            # Extract job information from response
+            job_id = training_response.get('jobId')
+            estimated_time = training_response.get(
+                'estimatedTime', f"{epochs * 2} minutes")
+            
             logger.info(f"Training started for model {new_model.id} "
-                        f"with job ID {mock_job_id}")
+                        f"with job ID {job_id}")
 
             return jsonify({
                 'success': True,
                 'message': 'Model training started successfully',
                 'modelId': new_model.id,
-                'jobId': mock_job_id,
-                'estimatedTime': f"{epochs * 2} minutes"  # Rough estimate
+                'jobId': job_id,
+                'estimatedTime': estimated_time
             }), 201
+
+        except requests.exceptions.RequestException as nn_error:
+            # If NN API fails, rollback the model creation
+            db.session.delete(new_model)
+            db.session.commit()
+
+            logger.error(f"NN API error: {str(nn_error)}")
+            return jsonify({
+                'success': False,
+                'message': 'Failed to start training on NN API'
+            }), 503
 
         except Exception as nn_error:
             # If NN API fails, rollback the model creation
@@ -188,4 +225,4 @@ def trainModel():
         abort(500)
 
 
-#TODO: Add a status watcher to track status training
+# TODO: Add a status watcher to track status training

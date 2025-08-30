@@ -81,20 +81,71 @@ case "$user_policies" in
 esac
 
 echo "Checking and uploading datasets if needed..."
-# Upload datasets only if they don't already exist in MinIO
+
+# Upload datasets - handle both directories and zip files
+echo "Looking for datasets in /workspace/datasets/..."
+ls -la /workspace/datasets/ || echo "Warning: Could not list /workspace/datasets/"
+
+# Handle zip files
+echo "Checking for zip files..."
+zip_found=false
+for dataset_file in /workspace/datasets/*.zip; do
+    if [ -f "$dataset_file" ]; then
+        zip_found=true
+        dataset_name=$(basename "$dataset_file" .zip)
+        echo "Found zip dataset: $dataset_file -> $dataset_name"
+        
+        # Check if dataset already exists in MinIO
+        dataset_content=$(mc ls "local/dataset/$dataset_name.zip" 2>/dev/null)
+        if [ -n "$dataset_content" ]; then
+            echo "Dataset $dataset_name.zip already exists in MinIO, skipping..."
+        else
+            echo "Uploading zip dataset: $dataset_name.zip"
+            if mc cp "$dataset_file" "local/dataset/$dataset_name.zip"; then
+                echo "✓ Successfully uploaded $dataset_name.zip"
+            else
+                echo "✗ Failed to upload $dataset_name.zip"
+            fi
+        fi
+    fi
+done
+
+if [ "$zip_found" = false ]; then
+    echo "No zip files found in /workspace/datasets/"
+fi
+
+# Handle directories (original logic)
 for dataset in /workspace/datasets/*/; do
     if [ -d "$dataset" ]; then
         dataset_name=$(basename "$dataset")
-        echo "Checking dataset: $dataset_name"
+        echo "Checking directory dataset: $dataset_name"
         
         # Check if dataset already exists in MinIO by looking for actual content
         dataset_content=$(mc ls "local/dataset/$dataset_name/" 2>/dev/null)
         if [ -n "$dataset_content" ]; then
             echo "Dataset $dataset_name already exists in MinIO, skipping..."
         else
-            echo "Uploading dataset: $dataset_name"
+            echo "Uploading directory dataset: $dataset_name"
             mc cp --recursive "$dataset" "local/dataset/$dataset_name/"
             echo "✓ Uploaded $dataset_name"
+        fi
+    fi
+done
+
+# Handle other dataset files (e.g., .tar.gz, .tar, etc.)
+for dataset_file in /workspace/datasets/*.tar.gz /workspace/datasets/*.tar /workspace/datasets/*.rar; do
+    if [ -f "$dataset_file" ]; then
+        dataset_filename=$(basename "$dataset_file")
+        echo "Checking archive dataset: $dataset_filename"
+        
+        # Check if dataset already exists in MinIO
+        dataset_content=$(mc ls "local/dataset/$dataset_filename" 2>/dev/null)
+        if [ -n "$dataset_content" ]; then
+            echo "Dataset $dataset_filename already exists in MinIO, skipping..."
+        else
+            echo "Uploading archive dataset: $dataset_filename"
+            mc cp "$dataset_file" "local/dataset/$dataset_filename"
+            echo "✓ Uploaded $dataset_filename"
         fi
     fi
 done

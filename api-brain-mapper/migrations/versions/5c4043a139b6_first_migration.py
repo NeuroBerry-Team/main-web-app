@@ -56,6 +56,7 @@ def upgrade():
                     sa.Column('s3Path', sa.String(length=500), nullable=True),
                     sa.Column('createdBy', sa.Integer(), nullable=False),
                     sa.Column('createdOn', sa.DateTime(), nullable=False),
+                    sa.Column('active', sa.Boolean(), nullable=False, server_default='true'),
                     sa.ForeignKeyConstraint(['createdBy'], ['users.id']),
                     sa.PrimaryKeyConstraint('id'),
                     sa.UniqueConstraint('name')

@@ -9,4 +9,5 @@ class Dataset(db.Model):
     s3Path = db.Column(db.String(500), nullable=True)
     createdBy = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     createdOn = db.Column(db.DateTime(), nullable=False)
+    active = db.Column(db.Boolean, nullable=False, default=True)
 
