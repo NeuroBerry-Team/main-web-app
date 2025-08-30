@@ -31,6 +31,14 @@ def upgrade():
         )
         ON CONFLICT (id) DO NOTHING;
     """)
+    
+    # Fix the sequence to start from the next available ID
+    op.execute("""
+        SELECT setval('models_id_seq',
+                     (SELECT COALESCE(MAX(id), 0) FROM models) + 1,
+                     false);
+    """)
+
 
 def downgrade():
     op.execute("DELETE FROM models WHERE id=1;")

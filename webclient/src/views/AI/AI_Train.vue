@@ -49,12 +49,12 @@
               Dataset <span class="text-red-500">*</span>
             </label>
             <select 
-              v-model="trainingConfig.datasetId" 
+              v-model.number="trainingConfig.datasetId" 
               required
               :disabled="isTraining"
               class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-300 disabled:bg-gray-50"
             >
-              <option value="">Selecciona un dataset</option>
+              <option :value="null">Selecciona un dataset</option>
               <option 
                 v-for="dataset in availableDatasets" 
                 :key="dataset.id" 
@@ -338,7 +338,7 @@ const loadingDatasets = ref(false)
 
 // Training configuration
 const trainingConfig = ref({
-  datasetId: '',
+  datasetId: null,
   modelName: '',
   modelType: 'YOLOv8_m',
   description: '',
@@ -351,11 +351,29 @@ const trainingConfig = ref({
 
 // Computed properties
 const isFormValid = computed(() => {
-  return trainingConfig.value.datasetId && 
+  const datasetId = trainingConfig.value.datasetId
+  const isValid = datasetId !== null && 
+         datasetId !== '' &&
+         Number.isInteger(datasetId) &&
+         datasetId > 0 &&
          trainingConfig.value.modelName.trim().length > 0 &&
          trainingConfig.value.epochs > 0 &&
          trainingConfig.value.batchSize > 0 &&
          trainingConfig.value.learningRate > 0
+  
+  // Debug logging
+  console.log('Form validation debug:', {
+    datasetId,
+    datasetIdType: typeof datasetId,
+    datasetIdValid: datasetId !== null && datasetId !== '' && Number.isInteger(datasetId) && datasetId > 0,
+    modelNameValid: trainingConfig.value.modelName.trim().length > 0,
+    epochsValid: trainingConfig.value.epochs > 0,
+    batchSizeValid: trainingConfig.value.batchSize > 0,
+    learningRateValid: trainingConfig.value.learningRate > 0,
+    overallValid: isValid
+  })
+  
+  return isValid
 })
 
 // Methods
@@ -391,7 +409,7 @@ const handleTraining = async () => {
   try {
     // Prepare training payload
     const trainingPayload = {
-      datasetId: trainingConfig.value.datasetId,
+      datasetId: trainingConfig.value.datasetId, // Should already be an integer
       modelName: trainingConfig.value.modelName.trim(),
       modelType: trainingConfig.value.modelType,
       description: trainingConfig.value.description.trim(),
@@ -404,12 +422,22 @@ const handleTraining = async () => {
       }
     }
 
+    console.log('Training payload being sent:', trainingPayload)
+    console.log('Dataset ID type:', typeof trainingConfig.value.datasetId)
+    console.log('Dataset ID value:', trainingConfig.value.datasetId)
+
     const response = await makeSecureRequest(`${apiUrl}/models/train`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(trainingPayload)
+    })
+
+    console.log('Training request response:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok
     })
 
     if (response.ok) {
@@ -432,25 +460,15 @@ const handleTraining = async () => {
       }, 5000)
       
     } else {
-      // TODO: Remove this else with proper error handling. It always simulates a successful response
-      // For development - simulate successful training initiation
-      console.warn('Training API not yet implemented, simulating success')
-      
-      const mockJobId = Math.random().toString(36).substr(2, 9)
-      successMessage.value = `¡Entrenamiento iniciado correctamente! ID del trabajo: ${mockJobId}`
-      
-      // Log audit action with mock model ID
-      await logModelTraining(
-        trainingConfig.value.modelName,
-        trainingConfig.value.datasetId,
-        trainingConfig.value.modelType,
-        null
-      )
-      
-      setTimeout(() => {
-        resetForm()
-        successMessage.value = ''
-      }, 5000)
+      // Handle error response properly
+      try {
+        const errorData = await response.json()
+        error.value = errorData.message || `Error ${response.status}: ${response.statusText}`
+        console.error('Training API error:', errorData)
+      } catch (parseError) {
+        error.value = `Error ${response.status}: ${response.statusText}`
+        console.error('Training API error (no JSON):', response.statusText)
+      }
     }
 
   } catch (err) {
@@ -463,7 +481,7 @@ const handleTraining = async () => {
 
 const resetForm = () => {
   trainingConfig.value = {
-    datasetId: '',
+    datasetId: null,
     modelName: '',
     modelType: 'YOLOv8_m',
     description: '',

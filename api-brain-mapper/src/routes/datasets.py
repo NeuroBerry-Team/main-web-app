@@ -28,7 +28,7 @@ def getAvailableDatasets():
             created_on = (dataset.createdOn.isoformat()
                           if dataset.createdOn else None)
             datasets_list.append({
-                'id': dataset.name,  # Use name as ID for frontend
+                'id': dataset.id,  # Use actual database ID for frontend
                 'name': dataset.name,
                 'description': dataset.description,
                 'datasetType': dataset.datasetType,

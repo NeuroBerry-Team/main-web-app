@@ -21,6 +21,13 @@ def upgrade():
     op.execute("INSERT INTO roles (id, name) VALUES (1, 'SUPERADMIN') ON CONFLICT (id) DO NOTHING;")
     op.execute("INSERT INTO roles (id, name) VALUES (2, 'ADMIN') ON CONFLICT (id) DO NOTHING;")
     op.execute("INSERT INTO roles (id, name) VALUES (3, 'AI_USER') ON CONFLICT (id) DO NOTHING;")
+    
+    # Fix the sequence to start from the next available ID
+    op.execute("""
+        SELECT setval('roles_id_seq',
+                     (SELECT COALESCE(MAX(id), 0) FROM roles) + 1,
+                     false);
+    """)
 
 
 def downgrade():
