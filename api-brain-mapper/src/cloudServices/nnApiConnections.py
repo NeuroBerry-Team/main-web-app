@@ -65,3 +65,42 @@ class NnAPIClient:
             response.raise_for_status()
 
         return response.json()
+    
+    def getTrainingJobs(self):
+        """
+        Get list of all training jobs
+        :return: Training jobs response
+        """
+        token = self._generateToken()
+        url = f"{self.base_url}/training"
+        headers = {
+            'Authorization': f'Bearer {token}',
+            'Content-Type': 'application/json'
+        }
+
+        response = requests.get(url, headers=headers)
+
+        if response.status_code != 200:
+            response.raise_for_status()
+
+        return response.json()
+    
+    def cancelTrainingJob(self, job_id):
+        """
+        Cancel a training job
+        :param job_id: ID of the training job to cancel
+        :return: Cancellation response
+        """
+        token = self._generateToken()
+        url = f"{self.base_url}/training/{job_id}"
+        headers = {
+            'Authorization': f'Bearer {token}',
+            'Content-Type': 'application/json'
+        }
+
+        response = requests.delete(url, headers=headers)
+
+        if response.status_code != 200:
+            response.raise_for_status()
+
+        return response.json()

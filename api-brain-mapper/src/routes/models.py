@@ -162,6 +162,7 @@ def trainModel():
         # Log audits are done through vite composable
 
         # Prepare training data for NN API
+        flask_api_base_url = os.getenv('FLASK_API_BASE_URL', 'http://localhost:5000')
         training_data = {
             'modelId': new_model.id,
             'modelName': model_name,
@@ -174,11 +175,16 @@ def trainModel():
                 'batchSize': batch_size,
                 'learningRate': learning_rate,
                 'patience': patience
+            },
+            'callbackUrls': {
+                'completed': f"{flask_api_base_url}/models/training-callback/completed",
+                'failed': f"{flask_api_base_url}/models/training-callback/failed"
             }
         }
 
         # Call NN API to start training
         try:
+            logger.info(f"Sending training data to NN API: {training_data}")
             training_response = nnClient.requestTraining(training_data)
             
             # Extract job information from response
@@ -191,7 +197,8 @@ def trainModel():
 
             return jsonify({
                 'success': True,
-                'message': 'Model training started successfully',
+                'message': ('Training job created and started. Check training '
+                           'progress for status updates.'),
                 'modelId': new_model.id,
                 'jobId': job_id,
                 'estimatedTime': estimated_time
@@ -226,3 +233,138 @@ def trainModel():
 
 
 # TODO: Add a status watcher to track status training
+
+
+@models.route('/training-jobs', methods=['GET'])
+@auth_required(["ADMIN", "SUPERADMIN"])
+def getTrainingJobs():
+    """
+    Get list of all training jobs from NN API
+    """
+    try:
+        # Forward the request to NN API
+        response = nnClient.getTrainingJobs()
+        
+        return jsonify(response), 200
+        
+    except requests.exceptions.RequestException as nn_error:
+        logger.error(f"NN API error getting training jobs: {str(nn_error)}")
+        return jsonify({
+            'success': False,
+            'message': 'Failed to get training jobs from NN API'
+        }), 503
+        
+    except Exception as e:
+        logger.error(f"Error getting training jobs: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Internal server error'
+        }), 500
+
+
+@models.route('/training-jobs/<job_id>', methods=['DELETE'])
+@auth_required(["ADMIN", "SUPERADMIN"])
+def cancelTrainingJob(job_id):
+    """
+    Cancel a training job
+    """
+    try:
+        # Get the job details first to find associated model
+        try:
+            jobs_response = nnClient.getTrainingJobs()
+            job = None
+            for j in jobs_response.get('jobs', []):
+                if j.get('jobId') == job_id:
+                    job = j
+                    break
+            
+            if job:
+                model_id = job.get('trainingData', {}).get('modelId')
+                if model_id:
+                    # Delete the model from database since training is being cancelled
+                    model = Model.query.get(model_id)
+                    if model:
+                        db.session.delete(model)
+                        db.session.commit()
+                        logger.info(f"Deleted model {model_id} for cancelled job {job_id}")
+        except Exception as cleanup_error:
+            logger.warning(f"Could not cleanup model for cancelled job: {cleanup_error}")
+        
+        # Forward the cancellation request to NN API
+        response = nnClient.cancelTrainingJob(job_id)
+        
+        return jsonify(response), 200
+        
+    except requests.exceptions.RequestException as nn_error:
+        logger.error(f"NN API error cancelling job {job_id}: {str(nn_error)}")
+        return jsonify({
+            'success': False,
+            'message': 'Failed to cancel training job'
+        }), 503
+        
+    except Exception as e:
+        logger.error(f"Error cancelling training job {job_id}: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Internal server error'
+        }), 500
+
+
+@models.route('/training-callback/completed', methods=['POST'])
+def trainingCompletedCallback():
+    """
+    Callback endpoint for when training completes successfully
+    """
+    try:
+        data = request.get_json()
+        job_id = data.get('jobId')
+        model_id = data.get('modelId')
+        model_path = data.get('modelPath')
+        
+        if model_id:
+            # Update model record with completion status
+            model = Model.query.get(model_id)
+            if model:
+                model.updatedOn = datetime.utcnow()
+                # You might want to add a status field to track training completion
+                db.session.commit()
+                logger.info(f"Updated model {model_id} after training completion")
+        
+        return jsonify({'success': True, 'message': 'Callback processed'}), 200
+        
+    except Exception as e:
+        logger.error(f"Error processing training completion callback: {str(e)}")
+        return jsonify({'success': False, 'message': 'Callback failed'}), 500
+
+
+@models.route('/training-callback/failed', methods=['POST'])
+def trainingFailedCallback():
+    """
+    Callback endpoint for when training fails
+    """
+    try:
+        data = request.get_json()
+        job_id = data.get('jobId')
+        error_message = data.get('error')
+        
+        # Try to find and delete the model that failed to train
+        try:
+            jobs_response = nnClient.getTrainingJobs()
+            for job in jobs_response.get('jobs', []):
+                if job.get('jobId') == job_id:
+                    model_id = job.get('trainingData', {}).get('modelId')
+                    if model_id:
+                        model = Model.query.get(model_id)
+                        if model:
+                            db.session.delete(model)
+                            db.session.commit()
+                            logger.info(f"Deleted failed model {model_id} for job {job_id}")
+                    break
+        except Exception as cleanup_error:
+            logger.warning(f"Could not cleanup failed model for job {job_id}: {cleanup_error}")
+        
+        return jsonify({'success': True, 'message': 'Failure callback processed'}), 200
+        
+    except Exception as e:
+        logger.error(f"Error processing training failure callback: {str(e)}")
+        return jsonify({'success': False, 'message': 'Callback failed'}), 500
