@@ -7,6 +7,7 @@ from logs.logger import logger
 from ..database.dbConnection import db
 from ..models.model import Model
 from ..models.dataset import Dataset
+from ..models.audit_log import AuditLog
 from ..security.decorators_utils import auth_required
 from ..security.input_validation import InputValidator
 from ..cloudServices.nnApiConnections import NnAPIClient
@@ -270,6 +271,10 @@ def cancelTrainingJob(job_id):
     """
     try:
         # Get the job details first to find associated model
+        model_deleted = False
+        model_id = None
+        model_name = None
+        
         try:
             jobs_response = nnClient.getTrainingJobs()
             job = None
@@ -281,17 +286,53 @@ def cancelTrainingJob(job_id):
             if job:
                 model_id = job.get('trainingData', {}).get('modelId')
                 if model_id:
-                    # Delete the model from database since training is being cancelled
+                    # Delete the model from database since training is cancelled
                     model = Model.query.get(model_id)
                     if model:
+                        model_name = model.modelName
                         db.session.delete(model)
                         db.session.commit()
-                        logger.info(f"Deleted model {model_id} for cancelled job {job_id}")
+                        model_deleted = True
+                        logger.info(f"Deleted model {model_id} ({model_name}) "
+                                    f"for cancelled job {job_id}")
+                        
+                        # Create audit log for model deletion due to cancellation
+                        audit_log = AuditLog(
+                            userId=g.uid,  # User who cancelled
+                            action="MODEL_TRAINING_CANCELLED_DELETED",
+                            entityType="model",
+                            entityId=model_id,
+                            timestamp=datetime.utcnow()
+                        )
+                        db.session.add(audit_log)
+                        db.session.commit()
+                        
         except Exception as cleanup_error:
-            logger.warning(f"Could not cleanup model for cancelled job: {cleanup_error}")
+            logger.warning(f"Could not cleanup model for cancelled job: "
+                           f"{cleanup_error}")
+        
+        # Create audit log for the training cancellation action
+        try:
+            audit_log = AuditLog(
+                userId=g.uid,
+                action="MODEL_TRAINING_CANCELLED",
+                entityType="training_job",
+                entityId=None,
+                timestamp=datetime.utcnow()
+            )
+            db.session.add(audit_log)
+            db.session.commit()
+        except Exception as audit_error:
+            logger.warning(f"Could not create audit log for cancellation: "
+                           f"{audit_error}")
         
         # Forward the cancellation request to NN API
         response = nnClient.cancelTrainingJob(job_id)
+        
+        # Add metadata to response
+        if isinstance(response, dict):
+            response['modelDeleted'] = model_deleted
+            response['modelId'] = model_id
         
         return jsonify(response), 200
         
@@ -347,7 +388,12 @@ def trainingFailedCallback():
         job_id = data.get('jobId')
         error_message = data.get('error')
         
+        logger.info(f"Processing training failure callback for job {job_id}")
+        
         # Try to find and delete the model that failed to train
+        model_deleted = False
+        model_id = None
+        
         try:
             jobs_response = nnClient.getTrainingJobs()
             for job in jobs_response.get('jobs', []):
@@ -356,14 +402,50 @@ def trainingFailedCallback():
                     if model_id:
                         model = Model.query.get(model_id)
                         if model:
+                            model_name = model.modelName
                             db.session.delete(model)
                             db.session.commit()
-                            logger.info(f"Deleted failed model {model_id} for job {job_id}")
+                            model_deleted = True
+                            logger.info(f"Deleted failed model {model_id} "
+                                        f"({model_name}) for job {job_id}")
+                            
+                            # Create audit log for model deletion
+                            audit_log = AuditLog(
+                                userId=None,  # System action
+                                action="MODEL_TRAINING_FAILED_DELETED",
+                                entityType="model",
+                                entityId=model_id,
+                                timestamp=datetime.utcnow()
+                            )
+                            db.session.add(audit_log)
+                            db.session.commit()
+                            
                     break
         except Exception as cleanup_error:
-            logger.warning(f"Could not cleanup failed model for job {job_id}: {cleanup_error}")
+            logger.warning(f"Could not cleanup failed model for job "
+                           f"{job_id}: {cleanup_error}")
         
-        return jsonify({'success': True, 'message': 'Failure callback processed'}), 200
+        # Log the training failure event
+        if model_id:
+            try:
+                audit_log = AuditLog(
+                    userId=None,  # System action
+                    action="MODEL_TRAINING_FAILED",
+                    entityType="training_job",
+                    entityId=None,
+                    timestamp=datetime.utcnow()
+                )
+                db.session.add(audit_log)
+                db.session.commit()
+            except Exception as audit_error:
+                logger.warning(f"Could not create audit log for failed "
+                               f"training: {audit_error}")
+        
+        return jsonify({
+            'success': True, 
+            'message': 'Failure callback processed',
+            'modelDeleted': model_deleted
+        }), 200
         
     except Exception as e:
         logger.error(f"Error processing training failure callback: {str(e)}")
