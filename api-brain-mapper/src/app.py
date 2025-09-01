@@ -29,7 +29,8 @@ from .routes.auth import auth
 from .routes.inferences import inferences
 from .routes.datasets import datasets
 from .routes.models import models
-from .routes.audit import audit 
+from .routes.audit import audit
+from .routes.users import users 
 
 migrate = Migrate()  # Creates an instance of migrate without initialization
 
@@ -82,6 +83,7 @@ def create_app():
     app.register_blueprint(datasets)
     app.register_blueprint(models)
     app.register_blueprint(audit)
+    app.register_blueprint(users)
 
     # Setup cors policies
     app.config['CORS_EXPOSE_HEADERS'] = ['Content-Type']

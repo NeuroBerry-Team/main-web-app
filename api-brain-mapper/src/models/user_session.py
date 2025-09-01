@@ -24,8 +24,10 @@ class UserSession(db.Model):
         return {
             'id': self.id,
             'userId': self.userId,
-            'loginAt': self.loginAt.isoformat() if self.loginAt else None,
-            'logoutAt': self.logoutAt.isoformat() if self.logoutAt else None,
+            'loginAt': (self.loginAt.isoformat() + 'Z'
+                        if self.loginAt else None),
+            'logoutAt': (self.logoutAt.isoformat() + 'Z'
+                         if self.logoutAt else None),
             'ipAddress': self.ipAddress,
             'userAgent': self.userAgent,
             'isActive': self.logoutAt is None
@@ -82,5 +84,3 @@ class UserSession(db.Model):
             cls.userId == user_id,
             cls.loginAt >= cutoff_date
         ).order_by(cls.loginAt.desc()).all()
-
-    

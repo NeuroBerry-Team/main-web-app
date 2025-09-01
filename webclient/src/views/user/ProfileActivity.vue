@@ -1,6 +1,6 @@
 <template>
-  <!-- Use Teleport to render modal outside of parent component -->
-  <Teleport to="body">
+  <!-- Only render modal if we're on the exact activity route, not child routes -->
+  <Teleport to="body" v-if="shouldShowModal">
     <div class="modal-overlay" @click.self="closeModal">
       <div class="modal-container" @click.stop>
         <div class="bg-gradient-to-r from-red-600 via-red-700 to-red-800 text-white p-6 flex items-center justify-between relative overflow-hidden">
@@ -29,7 +29,11 @@
               <div class="flex items-center justify-between">
                 <div>
                   <p class="text-sm font-medium text-gray-600">Total Análisis</p>
-                  <p class="text-2xl font-bold text-gray-900">47</p>
+                  <p class="text-2xl font-bold text-gray-900">
+                    <span v-if="loading">...</span>
+                    <span v-else-if="error">Error</span>
+                    <span v-else>{{ analysisCount }}</span>
+                  </p>
                 </div>
                 <div class="text-3xl text-blue-500">🔍</div>
               </div>
@@ -39,7 +43,11 @@
               <div class="flex items-center justify-between">
                 <div>
                   <p class="text-sm font-medium text-gray-600">Último Acceso</p>
-                  <p class="text-2xl font-bold text-gray-900">Hoy</p>
+                  <p class="text-2xl font-bold text-gray-900">
+                    <span v-if="loading">...</span>
+                    <span v-else-if="error">Error</span>
+                    <span v-else>{{ lastAccess }}</span>
+                  </p>
                 </div>
                 <div class="text-3xl text-green-500">⏰</div>
               </div>
@@ -48,10 +56,14 @@
             <div class="bg-white p-6 rounded-2xl shadow-lg border-l-4 border-purple-500 hover:shadow-xl transition-shadow duration-300">
               <div class="flex items-center justify-between">
                 <div>
-                  <p class="text-sm font-medium text-gray-600">Precisión Promedio</p>
-                  <p class="text-2xl font-bold text-gray-900">94.2%</p>
+                  <p class="text-sm font-medium text-gray-600">Días Activos (mes)</p>
+                  <p class="text-2xl font-bold text-gray-900">
+                    <span v-if="loading">...</span>
+                    <span v-else-if="error">Error</span>
+                    <span v-else>{{ userStats?.summary?.activeDaysThisMonth || 0 }}</span>
+                  </p>
                 </div>
-                <div class="text-3xl text-purple-500">🎯</div>
+                <div class="text-3xl text-purple-500">📅</div>
               </div>
             </div>
           </div>
@@ -62,32 +74,54 @@
               <div class="text-2xl">📊</div>
               <h3 class="text-xl font-bold text-gray-800">Análisis Recientes</h3>
             </div>
-            <div class="space-y-4">
-              <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200">
+            
+            <div v-if="loading" class="text-center py-4">
+              <p class="text-gray-500">Cargando análisis...</p>
+            </div>
+            
+            <div v-else-if="error" class="text-center py-4">
+              <p class="text-red-500">Error al cargar los análisis</p>
+            </div>
+            
+            <div v-else-if="!userStats?.recentAnalyses?.length" class="text-center py-8">
+              <div class="text-4xl mb-4">📊</div>
+              <p class="text-gray-500 mb-2">No hay análisis recientes</p>
+              <p class="text-sm text-gray-400 mb-4">Realiza tu primer análisis de imagen</p>
+              <router-link to="/AI/inference" 
+                           class="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200">
+                Crear análisis
+                <span class="ml-2">→</span>
+              </router-link>
+            </div>
+            
+            <div v-else class="space-y-4">
+              <router-link
+                v-for="analysis in userStats.recentAnalyses.slice(0, 3)"
+                :key="analysis.id"
+                :to="`/profile/activity/inferences?id=${analysis.id}`"
+                class="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200 block"
+              >
                 <div class="flex items-center space-x-4">
                   <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                     <span class="text-green-600 font-semibold">🍓</span>
                   </div>
                   <div>
-                    <p class="font-semibold text-gray-800">Frambuesa - Estado Maduro</p>
-                    <p class="text-sm text-gray-600">Hace 2 horas • Confianza: 96%</p>
+                    <p class="font-semibold text-gray-800">{{ analysis.result }}</p>
+                    <p class="text-sm text-gray-600">
+                      {{ formatActivityTime(analysis.createdOn) }}
+                      <span v-if="analysis.confidence" class="ml-2">
+                        • Confianza: {{ Math.round(analysis.confidence * 100) }}%
+                      </span>
+                    </p>
                   </div>
                 </div>
-                <div class="text-sm text-gray-500">14:30</div>
-              </div>
-              
-              <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200">
-                <div class="flex items-center space-x-4">
-                  <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
-                    <span class="text-yellow-600 font-semibold">🍓</span>
-                  </div>
-                  <div>
-                    <p class="font-semibold text-gray-800">Frambuesa - En Maduración</p>
-                    <p class="text-sm text-gray-600">Hace 5 horas • Confianza: 89%</p>
-                  </div>
+                <div class="text-sm text-gray-500">
+                  {{ new Date(analysis.createdOn).toLocaleTimeString('es-ES', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  }) }}
                 </div>
-                <div class="text-sm text-gray-500">11:15</div>
-              </div>
+              </router-link>
             </div>
             
             <div class="mt-6 pt-4 border-t border-gray-200">
@@ -109,11 +143,15 @@
               <div class="space-y-4">
                 <div class="flex justify-between items-center">
                   <span class="text-gray-600">Análisis esta semana</span>
-                  <span class="font-semibold text-gray-800">12</span>
+                  <span class="font-semibold text-gray-800">
+                    {{ userStats?.summary?.analysesThisWeek || 0 }}
+                  </span>
                 </div>
                 <div class="flex justify-between items-center">
-                  <span class="text-gray-600">Tiempo promedio por análisis</span>
-                  <span class="font-semibold text-gray-800">2.3s</span>
+                  <span class="text-gray-600">Racha de login actual</span>
+                  <span class="font-semibold text-gray-800">
+                    {{ userStats?.summary?.currentLoginStreak || 0 }} día{{ userStats?.summary?.currentLoginStreak !== 1 ? 's' : '' }}
+                  </span>
                 </div>
                 <div class="flex justify-between items-center">
                   <span class="text-gray-600">Funciones más utilizadas</span>
@@ -123,15 +161,21 @@
               <div class="space-y-4">
                 <div class="flex justify-between items-center">
                   <span class="text-gray-600">Días activos este mes</span>
-                  <span class="font-semibold text-gray-800">18</span>
+                  <span class="font-semibold text-gray-800">
+                    {{ userStats?.summary?.activeDaysThisMonth || 0 }}
+                  </span>
                 </div>
                 <div class="flex justify-between items-center">
-                  <span class="text-gray-600">Mejor racha de uso</span>
-                  <span class="font-semibold text-gray-800">7 días</span>
+                  <span class="text-gray-600">Total de imágenes</span>
+                  <span class="font-semibold text-gray-800">
+                    {{ userStats?.summary?.imagesProcessed || 0 }}
+                  </span>
                 </div>
                 <div class="flex justify-between items-center">
-                  <span class="text-gray-600">Imágenes procesadas</span>
-                  <span class="font-semibold text-gray-800">47</span>
+                  <span class="text-gray-600">Sesiones activas</span>
+                  <span class="font-semibold text-gray-800">
+                    {{ userStats?.recentSessions?.filter(s => s.isActive).length || 0 }}
+                  </span>
                 </div>
               </div>
             </div>
@@ -151,28 +195,35 @@
               <div class="text-2xl">📝</div>
               <h3 class="text-xl font-bold text-gray-800">Registro de Actividad</h3>
             </div>
-            <div class="space-y-3">
-              <div class="flex items-center space-x-4 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                <div class="w-2 h-2 bg-green-500 rounded-full"></div>
-                <div class="flex-1">
-                  <p class="text-sm text-gray-800">Inicio de sesión exitoso</p>
-                  <p class="text-xs text-gray-500">Hoy a las 14:25</p>
+            
+            <div v-if="loading" class="text-center py-4">
+              <p class="text-gray-500">Cargando actividad...</p>
+            </div>
+            
+            <div v-else-if="error" class="text-center py-4">
+              <p class="text-red-500">Error al cargar la actividad</p>
+            </div>
+            
+            <div v-else-if="activityLogs.length === 0" class="text-center py-4">
+              <p class="text-gray-500">No hay actividad reciente</p>
+            </div>
+            
+            <div v-else class="space-y-3 max-h-96 overflow-y-auto">
+              <div 
+                v-for="activity in activityLogs" 
+                :key="`${activity.type}-${activity.timestamp.getTime()}`"
+                class="flex items-center space-x-4 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+              >
+                <div :class="activity.color" class="w-2 h-2 rounded-full flex-shrink-0"></div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center space-x-2">
+                    <span class="text-sm">{{ activity.icon }}</span>
+                    <p class="text-sm font-medium text-gray-800 truncate">{{ activity.title }}</p>
+                  </div>
+                  <p class="text-xs text-gray-500 truncate">{{ activity.subtitle }}</p>
                 </div>
-              </div>
-              
-              <div class="flex items-center space-x-4 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <div class="flex-1">
-                  <p class="text-sm text-gray-800">Análisis de imagen completado</p>
-                  <p class="text-xs text-gray-500">Hoy a las 14:30</p>
-                </div>
-              </div>
-              
-              <div class="flex items-center space-x-4 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                <div class="w-2 h-2 bg-purple-500 rounded-full"></div>
-                <div class="flex-1">
-                  <p class="text-sm text-gray-800">Acceso a perfil de usuario</p>
-                  <p class="text-xs text-gray-500">Hoy a las 16:45</p>
+                <div class="text-xs text-gray-400 flex-shrink-0">
+                  {{ formatActivityTime(activity.timestamp) }}
                 </div>
               </div>
             </div>
@@ -190,15 +241,29 @@
     </div>
   </div>
   </Teleport>
+  
+  <!-- Render child routes when not showing the main modal -->
+  <router-view v-if="!shouldShowModal" />
 </template>
 
 <script setup>
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 
 const router = useRouter()
+const route = useRoute()
+const userStats = ref(null)
+const loading = ref(true)
+const error = ref(null)
+
+// Only show modal if we're on the exact activity route, not child routes
+const shouldShowModal = computed(() => {
+  // Show modal only for exact /profile/activity route
+  return route.path === '/profile/activity'
+})
 
 const closeModal = () => {
-  router.back() // Go back to parent route
+  router.push('/profile') // Always return to the main profile page
 }
 
 // Close modal on Escape key
@@ -208,13 +273,181 @@ const handleKeydown = (event) => {
   }
 }
 
-// Add event listener for Escape key
-import { onMounted, onUnmounted } from 'vue'
+// Computed properties for easy access to stats
+const analysisCount = computed(() => 
+  userStats.value?.summary?.totalAnalyses || 0
+)
 
-onMounted(() => {
+const lastAccess = computed(() => {
+  if (!userStats.value?.summary?.lastLogin) return 'Nunca'
+  
+  const lastLogin = new Date(userStats.value.summary.lastLogin)
+  const now = new Date()
+  const diffHours = Math.floor((now - lastLogin) / (1000 * 60 * 60))
+  
+  if (diffHours < 1) return 'Hace menos de 1 hora'
+  if (diffHours < 24) return `Hace ${diffHours} hora${diffHours > 1 ? 's' : ''}`
+  
+  const diffDays = Math.floor(diffHours / 24)
+  if (diffDays === 1) return 'Ayer'
+  if (diffDays < 7) return `Hace ${diffDays} días`
+  
+  return lastLogin.toLocaleDateString('es-ES')
+})
+
+// Combined activity logs (logins + analyses) sorted chronologically
+const activityLogs = computed(() => {
+  if (!userStats.value) return []
+  
+  const activities = []
+  
+    // Add login sessions
+  if (userStats.value.recentSessions) {
+    userStats.value.recentSessions.forEach(session => {
+      const loginTime = new Date(session.loginAt)
+      
+      activities.push({
+        type: 'login',
+        timestamp: loginTime,
+        title: session.logoutAt ? 'Sesión completada' : 'Inicio de sesión',
+        subtitle: `IP: ${session.ipAddress || 'N/A'}${session.logoutAt ? ` • Duración: ${calculateSessionDuration(session)}` : ' • Sesión activa'}`,
+        color: session.logoutAt ? 'bg-green-500' : 'bg-blue-500',
+        icon: '🔐'
+      })
+      
+      // Add logout if exists
+      if (session.logoutAt) {
+        const logoutTime = new Date(session.logoutAt)
+        
+        activities.push({
+          type: 'logout',
+          timestamp: logoutTime,
+          title: 'Cierre de sesión',
+          subtitle: `IP: ${session.ipAddress || 'N/A'}`,
+          color: 'bg-gray-500',
+          icon: '🚪'
+        })
+      }
+    })
+  }
+  
+  // Add analyses
+  if (userStats.value.recentAnalyses) {
+    userStats.value.recentAnalyses.forEach(analysis => {
+      const analysisTime = new Date(analysis.createdOn)
+      
+      activities.push({
+        type: 'analysis',
+        timestamp: analysisTime,
+        title: 'Análisis completado',
+        subtitle: analysis.result || 'Procesamiento de imagen exitoso',
+        color: 'bg-purple-500',
+        icon: '🔍'
+      })
+    })
+  }
+  
+  // Sort by timestamp descending (most recent first)
+  return activities
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, 15) // Limit to 15 most recent activities
+})
+
+// Helper function to calculate session duration
+const calculateSessionDuration = (session) => {
+  if (!session.logoutAt) return 'Activa'
+  
+  const login = new Date(session.loginAt)
+  const logout = new Date(session.logoutAt)
+  const minutes = Math.floor((logout - login) / (1000 * 60))
+  
+  if (minutes < 60) return `${minutes}m`
+  const hours = Math.floor(minutes / 60)
+  const remainingMinutes = minutes % 60
+  return `${hours}h ${remainingMinutes}m`
+}
+
+// Helper function to format activity timestamp
+const formatActivityTime = (timestamp) => {
+  try {
+    if (!timestamp) return 'Sin fecha'
+    
+    // Convert timestamp to Date object
+    const date = new Date(timestamp)
+    
+    // Validate date
+    if (isNaN(date.getTime())) {
+      console.warn('Invalid date parsed from:', timestamp)
+      return 'Fecha inválida'
+    }
+    
+    const now = new Date()
+    
+    // Calculate time difference
+    const diffMs = now.getTime() - date.getTime()
+    
+    // Check for future timestamps (which shouldn't happen)
+    if (diffMs < 0) {
+      console.warn('Future timestamp detected:', date.toString(), 'vs now:', now.toString())
+      return 'Fecha futura'
+    }
+    
+    const diffMinutes = Math.floor(diffMs / (1000 * 60))
+    const diffHours = Math.floor(diffMinutes / 60)
+    const diffDays = Math.floor(diffHours / 24)
+    
+    if (diffMinutes < 1) return 'Ahora mismo'
+    if (diffMinutes < 60) return `Hace ${diffMinutes}m`
+    if (diffHours < 24) return `Hace ${diffHours}h`
+    if (diffDays === 1) return 'Ayer'
+    if (diffDays < 7) return `Hace ${diffDays} días`
+    
+    return date.toLocaleDateString('es-ES')
+  } catch (error) {
+    console.error('Error formatting activity time:', error, timestamp)
+    return 'Error de fecha'
+  }
+}
+
+// Get comprehensive user statistics from API
+const getUserStats = async () => {
+  try {
+    const apiUrl = import.meta.env.VITE_API_BASE_URL
+    const response = await fetch(`${apiUrl}/users/stats`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    const data = await response.json()
+    
+    if (data.success) {
+      userStats.value = data
+    } else {
+      throw new Error(data.error || 'Failed to fetch user statistics')
+    }
+  } catch (err) {
+    console.error('Error fetching user stats:', err)
+    error.value = err.message
+    userStats.value = null
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(async () => {
   // Disable body scrolling when modal opens
   document.body.style.overflow = 'hidden'
   document.addEventListener('keydown', handleKeydown)
+  
+  // Fetch user statistics
+  await getUserStats()
 })
 
 onUnmounted(() => {

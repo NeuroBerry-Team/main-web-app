@@ -146,7 +146,7 @@ def generateInference():
         name=name,
         baseImageUrl=baseImageUrl,
         generatedImageUrl=generatedImageUrl,
-        createdOn=datetime.datetime.now()
+        createdOn=datetime.datetime.utcnow()
     )
 
     # Save inference in DB
