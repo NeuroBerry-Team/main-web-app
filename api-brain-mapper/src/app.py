@@ -14,21 +14,22 @@ from .routes.errorHandlers import errorHandlers
 # load .env file to environment
 load_dotenv()
 
-# Import routers
+# Import models FIRST to ensure they're registered with SQLAlchemy
+from .models.user import User
+from .models.role import Role
+from .models.model import Model
+from .models.inference import Inference
+from .models.dataset import Dataset
+from .models.model_dataset import ModelDataset
+from .models.audit_log import AuditLog
+from .models.user_session import UserSession
+
+# Import routers AFTER models
 from .routes.auth import auth
 from .routes.inferences import inferences
 from .routes.datasets import datasets
 from .routes.models import models
-from .routes.audit import audit
-
-# Import models to ensure they're registered with SQLAlchemy
-from .models.user import User  
-from .models.role import Role  
-from .models.model import Model  
-from .models.inference import Inference  
-from .models.dataset import Dataset  
-from .models.model_dataset import ModelDataset  
-from .models.audit_log import AuditLog 
+from .routes.audit import audit 
 
 migrate = Migrate()  # Creates an instance of migrate without initialization
 

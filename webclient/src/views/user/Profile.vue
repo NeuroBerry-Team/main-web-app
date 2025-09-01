@@ -77,7 +77,7 @@
             <div class="text-4xl lg:text-5xl mb-4">📊</div>
             <h3 class="text-xl lg:text-2xl font-bold text-gray-800 mb-3">Base de Datos</h3>
             <p class="text-gray-600 leading-relaxed mb-6">
-              Explora nuestra colección de 3000 imágenes organizadas en 5 clases de madurez
+              Explora una muestra de nuestra colección de 3000 imágenes organizadas en 5 clases de madurez
             </p>
             <div class="flex justify-between items-center">
             <span class="text-red-600 font-semibold group-hover:text-red-700 hover:underline">Ver Database</span>

@@ -6,6 +6,7 @@ from logs.logger import logger
 
 from sqlalchemy import select
 from ..models.user import User
+from ..models.user_session import UserSession
 from ..schemas.user import user_schema
 from ..database.dbConnection import db
 
@@ -79,7 +80,7 @@ def addUser():
 @auth.route('/register', methods=['POST'])
 def register():
     """Public user registration endpoint"""
-    # Validate request structure - now includes lastName
+    # Validate request structure
     req = InputValidator.validate_json_request(
         request, ['name', 'lastName', 'email', 'password']
     )
@@ -126,7 +127,7 @@ def register():
         # Hash password 
         hashed_password = hashPassword(password)
         
-        # Create user object - now including lastName
+        # Create user object
         new_user = User(
             name=name,
             lastName=lastName,
@@ -164,14 +165,14 @@ def login():
     email = InputValidator.validate_email_format(req['email'])
     password = req['passwd']
     
-    # Basic password validation (not full strength check for login)
+    # Basic password validation
     if not password or len(password.strip()) == 0:
         abort(400, 'Password is required')
     
     # Sanitize password (remove null bytes, limit length)
     password = InputValidator.sanitize_string(password, max_length=200)
     
-    # Check if account is locked
+    # Check if account is locked (60 minutes if too many attempts failed)
     check_account_lockout(email)
 
     try:
@@ -186,7 +187,7 @@ def login():
 
     # If no user matched the email in req, return standardized error
     user = result.scalar_one_or_none()
-    if user is None:
+    if user is None: # TODO: Should only lock if the email matches a user but the password is wrong
         # Handle failed login for rate limiting
         handle_failed_login(email)
         # Use same error as wrong password to prevent username enumeration
@@ -226,6 +227,21 @@ def login():
                     samesite='Strict' if is_production else 'Lax',
                     max_age=60*60*24,  # 24 hours
                     path='/')  # Available for all paths
+    
+    # Add login session to DB
+    try:
+        user_session = UserSession.create_session(
+            user_id=user.id,
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent', '')
+        )
+        db.session.add(user_session)
+        db.session.commit()
+    except Exception:
+        logger.exception('Error creating user session')
+        db.session.rollback()
+    
+    # Still login if no login session could be added
 
     return resp
 
@@ -302,13 +318,21 @@ def getRole():
 
 
 @auth.route('/logout', methods=['POST'])
+@auth_required()
 def logout():
     try:
         resp = make_response(jsonify({'loggedIn': False}), 200)
         resp.set_cookie('access_token', '', expires=0)
+
+        # Close user session
+        # TODO: Add session ID to JWT token to close only one session
+        UserSession.close_all_sessions(g.uid)
+        db.session.commit()
+
         return resp
     except Exception:
         logger.error('Error while logging out')
+        db.session.rollback()
         abort(500)
 
 

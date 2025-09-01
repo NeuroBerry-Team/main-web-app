@@ -132,8 +132,6 @@ def check_account_lockout(email):
 
 def handle_failed_login(email, max_failures=3):
     """Handle failed login attempt - potentially lock account"""
-    # In production, implement proper account lockout
     if os.getenv('ENV_MODE') == 'production':
-        # You could track failed attempts per email in database
         # For now, we'll use the in-memory solution
         rate_limiter.lock_account(email)

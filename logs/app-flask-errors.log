@@ -603,3 +603,95 @@ DETAIL:  Key (id)=(1) already exists.
 [2025-08-31: 00:24:01] [models] > NN API error getting training jobs: HTTPConnectionPool(host='192.168.100.80', port=8080): Max retries exceeded with url: /training (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7f9c2ffa5fd0>: Failed to establish a new connection: [Errno 111] Connection refused')) >> None
 [2025-08-31: 02:05:20] [models] > NN API error getting training jobs: 401 Client Error: Unauthorized for url: http://192.168.100.80:8080//training >> None
 [2025-08-31: 02:05:20] [models] > NN API error cancelling job 6e82dba9-86d9-42f0-a403-1b439c8e5b17: 500 Server Error: Internal Server Error for url: http://192.168.100.80:8080//training/6e82dba9-86d9-42f0-a403-1b439c8e5b17 >> None
+[2025-08-31: 23:56:31] [dataset_sync] > Error during dataset synchronization: (psycopg2.errors.UndefinedTable) relation "datasets" does not exist
+LINE 2: FROM datasets
+             ^
+
+[SQL: SELECT datasets.id AS datasets_id, datasets.name AS datasets_name, datasets.description AS datasets_description, datasets."datasetType" AS "datasets_datasetType", datasets."s3Path" AS "datasets_s3Path", datasets."createdBy" AS "datasets_createdBy", datasets."createdOn" AS "datasets_createdOn", datasets.active AS datasets_active 
+FROM datasets]
+(Background on this error at: https://sqlalche.me/e/20/f405) >> None
+[2025-09-01: 00:10:59] [auth] > Error creating user session >> (<class 'sqlalchemy.exc.ProgrammingError'>, ProgrammingError('(psycopg2.errors.UndefinedTable) relation "user_sessions" does not exist\nLINE 1: INSERT INTO user_sessions ("userId", "loginAt", "logoutAt", ...\n                    ^\n'), <traceback object at 0x7fa6a9de2740>)
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 924, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.UndefinedTable: relation "user_sessions" does not exist
+LINE 1: INSERT INTO user_sessions ("userId", "loginAt", "logoutAt", ...
+                    ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/app/src/routes/auth.py", line 239, in login
+    db.session.commit()
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/scoping.py", line 597, in commit
+    return self._proxied.commit()
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2017, in commit
+    trans.commit(_to_root=True)
+  File "<string>", line 2, in commit
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/state_changes.py", line 139, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 1302, in commit
+    self._prepare_impl()
+  File "<string>", line 2, in _prepare_impl
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/state_changes.py", line 139, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 1277, in _prepare_impl
+    self.session.flush()
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 4341, in flush
+    self._flush(objects)
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 4476, in _flush
+    with util.safe_reraise():
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 4437, in _flush
+    flush_context.execute()
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/unitofwork.py", line 466, in execute
+    rec.execute(self)
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/unitofwork.py", line 642, in execute
+    util.preloaded.orm_persistence.save_obj(
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/persistence.py", line 93, in save_obj
+    _emit_insert_statements(
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/persistence.py", line 1233, in _emit_insert_statements
+    result = connection.execute(
+             ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1418, in execute
+    return meth(
+           ^^^^^
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/sql/elements.py", line 515, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1640, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2353, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 924, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedTable) relation "user_sessions" does not exist
+LINE 1: INSERT INTO user_sessions ("userId", "loginAt", "logoutAt", ...
+                    ^
+
+[SQL: INSERT INTO user_sessions ("userId", "loginAt", "logoutAt", "ipAddress", "userAgent") VALUES (%(userId)s, %(loginAt)s, %(logoutAt)s, %(ipAddress)s, %(userAgent)s) RETURNING user_sessions.id]
+[parameters: {'userId': 1, 'loginAt': datetime.datetime(2025, 9, 1, 0, 10, 59, 187449), 'logoutAt': None, 'ipAddress': '172.19.0.1', 'userAgent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+[2025-09-01: 00:12:23] [dataset_sync] > Error accessing MinIO bucket 'dataset': S3 operation failed; code: InvalidAccessKeyId, message: The Access Key Id you provided does not exist in our records., resource: /dataset, request_id: 18610031BD945BCE, host_id: 411bc421bd2f80bc9878e776fea40bf4f4a112865b490a39fb326fa1e5ad1a8e, bucket_name: dataset >> None
+[2025-09-01: 00:12:24] [dataset_sync] > Error accessing MinIO bucket 'dataset': S3 operation failed; code: InvalidAccessKeyId, message: The Access Key Id you provided does not exist in our records., resource: /dataset, request_id: 186100321AF08CAB, host_id: 411bc421bd2f80bc9878e776fea40bf4f4a112865b490a39fb326fa1e5ad1a8e, bucket_name: dataset >> None
+[2025-09-01: 00:12:25] [dataset_sync] > Error accessing MinIO bucket 'dataset': S3 operation failed; code: InvalidAccessKeyId, message: The Access Key Id you provided does not exist in our records., resource: /dataset, request_id: 18610032544295C6, host_id: 411bc421bd2f80bc9878e776fea40bf4f4a112865b490a39fb326fa1e5ad1a8e, bucket_name: dataset >> None
+[2025-09-01: 00:12:26] [dataset_sync] > Error accessing MinIO bucket 'dataset': S3 operation failed; code: InvalidAccessKeyId, message: The Access Key Id you provided does not exist in our records., resource: /dataset, request_id: 186100327DF517F9, host_id: 411bc421bd2f80bc9878e776fea40bf4f4a112865b490a39fb326fa1e5ad1a8e, bucket_name: dataset >> None
+[2025-09-01: 00:15:04] [dataset_sync] > Error accessing MinIO bucket 'dataset': S3 operation failed; code: InvalidAccessKeyId, message: The Access Key Id you provided does not exist in our records., resource: /dataset, request_id: 186100573506C416, host_id: 411bc421bd2f80bc9878e776fea40bf4f4a112865b490a39fb326fa1e5ad1a8e, bucket_name: dataset >> None
+[2025-09-01: 00:15:05] [dataset_sync] > Error accessing MinIO bucket 'dataset': S3 operation failed; code: InvalidAccessKeyId, message: The Access Key Id you provided does not exist in our records., resource: /dataset, request_id: 186100579EE3BC62, host_id: 411bc421bd2f80bc9878e776fea40bf4f4a112865b490a39fb326fa1e5ad1a8e, bucket_name: dataset >> None
+[2025-09-01: 00:15:06] [dataset_sync] > Error accessing MinIO bucket 'dataset': S3 operation failed; code: InvalidAccessKeyId, message: The Access Key Id you provided does not exist in our records., resource: /dataset, request_id: 18610057DB7E1E2A, host_id: 411bc421bd2f80bc9878e776fea40bf4f4a112865b490a39fb326fa1e5ad1a8e, bucket_name: dataset >> None
+[2025-09-01: 00:15:07] [dataset_sync] > Error accessing MinIO bucket 'dataset': S3 operation failed; code: InvalidAccessKeyId, message: The Access Key Id you provided does not exist in our records., resource: /dataset, request_id: 1861005807A18046, host_id: 411bc421bd2f80bc9878e776fea40bf4f4a112865b490a39fb326fa1e5ad1a8e, bucket_name: dataset >> None
