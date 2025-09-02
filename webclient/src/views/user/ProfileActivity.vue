@@ -310,6 +310,7 @@ const activityLogs = computed(() => {
         type: 'login',
         timestamp: loginTime,
         title: session.logoutAt ? 'Sesión completada' : 'Inicio de sesión',
+        // TODO: A session appears as active if the session cookie expires
         subtitle: `IP: ${session.ipAddress || 'N/A'}${session.logoutAt ? ` • Duración: ${calculateSessionDuration(session)}` : ' • Sesión activa'}`,
         color: session.logoutAt ? 'bg-green-500' : 'bg-blue-500',
         icon: '🔐'

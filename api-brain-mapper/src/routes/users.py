@@ -86,6 +86,7 @@ def get_user_stats():
                     "result": getattr(analysis, 'result', analysis.name),
                     "baseImageUrl": analysis.baseImageUrl,
                     "generatedImageUrl": analysis.generatedImageUrl,
+                    "metadataUrl": analysis.metadataUrl,
                     "createdOn": analysis.createdOn.isoformat() + 'Z',
                     "modelId": analysis.modelId,
                     # Add confidence if available (placeholder for now)
@@ -194,6 +195,7 @@ def get_user_inferences():
                     "result": getattr(inference, 'result', inference.name),
                     "baseImageUrl": inference.baseImageUrl,
                     "generatedImageUrl": inference.generatedImageUrl,
+                    "metadataUrl": inference.metadataUrl,
                     "createdOn": inference.createdOn.isoformat() + 'Z',
                     "modelId": inference.modelId,
                     "confidence": getattr(inference, 'confidence', 0.95),
@@ -231,6 +233,7 @@ def get_user_inferences():
                     "result": getattr(inference, 'result', inference.name),
                     "baseImageUrl": inference.baseImageUrl,
                     "generatedImageUrl": inference.generatedImageUrl,
+                    "metadataUrl": inference.metadataUrl,
                     "createdOn": inference.createdOn.isoformat() + 'Z',
                     "modelId": inference.modelId,
                     "confidence": getattr(inference, 'confidence', 0.95),

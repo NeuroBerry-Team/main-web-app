@@ -695,3 +695,84 @@ LINE 1: INSERT INTO user_sessions ("userId", "loginAt", "logoutAt", ...
 [2025-09-01: 00:15:05] [dataset_sync] > Error accessing MinIO bucket 'dataset': S3 operation failed; code: InvalidAccessKeyId, message: The Access Key Id you provided does not exist in our records., resource: /dataset, request_id: 186100579EE3BC62, host_id: 411bc421bd2f80bc9878e776fea40bf4f4a112865b490a39fb326fa1e5ad1a8e, bucket_name: dataset >> None
 [2025-09-01: 00:15:06] [dataset_sync] > Error accessing MinIO bucket 'dataset': S3 operation failed; code: InvalidAccessKeyId, message: The Access Key Id you provided does not exist in our records., resource: /dataset, request_id: 18610057DB7E1E2A, host_id: 411bc421bd2f80bc9878e776fea40bf4f4a112865b490a39fb326fa1e5ad1a8e, bucket_name: dataset >> None
 [2025-09-01: 00:15:07] [dataset_sync] > Error accessing MinIO bucket 'dataset': S3 operation failed; code: InvalidAccessKeyId, message: The Access Key Id you provided does not exist in our records., resource: /dataset, request_id: 1861005807A18046, host_id: 411bc421bd2f80bc9878e776fea40bf4f4a112865b490a39fb326fa1e5ad1a8e, bucket_name: dataset >> None
+[2025-09-02: 01:41:17] [dataset_sync] > Error accessing MinIO bucket 'dataset': S3 operation failed; code: InvalidAccessKeyId, message: The Access Key Id you provided does not exist in our records., resource: /dataset, request_id: 186153A0304C6735, host_id: 411bc421bd2f80bc9878e776fea40bf4f4a112865b490a39fb326fa1e5ad1a8e, bucket_name: dataset >> None
+[2025-09-02: 01:41:18] [dataset_sync] > Error accessing MinIO bucket 'dataset': S3 operation failed; code: InvalidAccessKeyId, message: The Access Key Id you provided does not exist in our records., resource: /dataset, request_id: 186153A09A51C707, host_id: 411bc421bd2f80bc9878e776fea40bf4f4a112865b490a39fb326fa1e5ad1a8e, bucket_name: dataset >> None
+[2025-09-02: 01:41:20] [dataset_sync] > Error accessing MinIO bucket 'dataset': S3 operation failed; code: InvalidAccessKeyId, message: The Access Key Id you provided does not exist in our records., resource: /dataset, request_id: 186153A100109CB1, host_id: 411bc421bd2f80bc9878e776fea40bf4f4a112865b490a39fb326fa1e5ad1a8e, bucket_name: dataset >> None
+[2025-09-02: 01:41:22] [dataset_sync] > Error during dataset synchronization: (psycopg2.errors.UndefinedTable) relation "datasets" does not exist
+LINE 2: FROM datasets
+             ^
+
+[SQL: SELECT datasets.id AS datasets_id, datasets.name AS datasets_name, datasets.description AS datasets_description, datasets."datasetType" AS "datasets_datasetType", datasets."s3Path" AS "datasets_s3Path", datasets."createdBy" AS "datasets_createdBy", datasets."createdOn" AS "datasets_createdOn", datasets.active AS datasets_active 
+FROM datasets]
+(Background on this error at: https://sqlalche.me/e/20/f405) >> None
+[2025-09-02: 01:41:26] [dataset_sync] > Error during dataset synchronization: (psycopg2.errors.UndefinedTable) relation "datasets" does not exist
+LINE 2: FROM datasets
+             ^
+
+[SQL: SELECT datasets.id AS datasets_id, datasets.name AS datasets_name, datasets.description AS datasets_description, datasets."datasetType" AS "datasets_datasetType", datasets."s3Path" AS "datasets_s3Path", datasets."createdBy" AS "datasets_createdBy", datasets."createdOn" AS "datasets_createdOn", datasets.active AS datasets_active 
+FROM datasets]
+(Background on this error at: https://sqlalche.me/e/20/f405) >> None
+[2025-09-02: 01:41:30] [dataset_sync] > Error during dataset synchronization: (psycopg2.errors.UndefinedTable) relation "datasets" does not exist
+LINE 2: FROM datasets
+             ^
+
+[SQL: SELECT datasets.id AS datasets_id, datasets.name AS datasets_name, datasets.description AS datasets_description, datasets."datasetType" AS "datasets_datasetType", datasets."s3Path" AS "datasets_s3Path", datasets."createdBy" AS "datasets_createdBy", datasets."createdOn" AS "datasets_createdOn", datasets.active AS datasets_active 
+FROM datasets]
+(Background on this error at: https://sqlalche.me/e/20/f405) >> None
+[2025-09-02: 01:41:36] [dataset_sync] > Error during dataset synchronization: (psycopg2.errors.UndefinedTable) relation "datasets" does not exist
+LINE 2: FROM datasets
+             ^
+
+[SQL: SELECT datasets.id AS datasets_id, datasets.name AS datasets_name, datasets.description AS datasets_description, datasets."datasetType" AS "datasets_datasetType", datasets."s3Path" AS "datasets_s3Path", datasets."createdBy" AS "datasets_createdBy", datasets."createdOn" AS "datasets_createdOn", datasets.active AS datasets_active 
+FROM datasets]
+(Background on this error at: https://sqlalche.me/e/20/f405) >> None
+[2025-09-02: 01:41:44] [dataset_sync] > Error during dataset synchronization: (psycopg2.errors.UndefinedTable) relation "datasets" does not exist
+LINE 2: FROM datasets
+             ^
+
+[SQL: SELECT datasets.id AS datasets_id, datasets.name AS datasets_name, datasets.description AS datasets_description, datasets."datasetType" AS "datasets_datasetType", datasets."s3Path" AS "datasets_s3Path", datasets."createdBy" AS "datasets_createdBy", datasets."createdOn" AS "datasets_createdOn", datasets.active AS datasets_active 
+FROM datasets]
+(Background on this error at: https://sqlalche.me/e/20/f405) >> None
+[2025-09-02: 01:41:58] [dataset_sync] > Error during dataset synchronization: (psycopg2.errors.UndefinedTable) relation "datasets" does not exist
+LINE 2: FROM datasets
+             ^
+
+[SQL: SELECT datasets.id AS datasets_id, datasets.name AS datasets_name, datasets.description AS datasets_description, datasets."datasetType" AS "datasets_datasetType", datasets."s3Path" AS "datasets_s3Path", datasets."createdBy" AS "datasets_createdBy", datasets."createdOn" AS "datasets_createdOn", datasets.active AS datasets_active 
+FROM datasets]
+(Background on this error at: https://sqlalche.me/e/20/f405) >> None
+[2025-09-02: 01:42:25] [dataset_sync] > Error during dataset synchronization: (psycopg2.errors.UndefinedTable) relation "datasets" does not exist
+LINE 2: FROM datasets
+             ^
+
+[SQL: SELECT datasets.id AS datasets_id, datasets.name AS datasets_name, datasets.description AS datasets_description, datasets."datasetType" AS "datasets_datasetType", datasets."s3Path" AS "datasets_s3Path", datasets."createdBy" AS "datasets_createdBy", datasets."createdOn" AS "datasets_createdOn", datasets.active AS datasets_active 
+FROM datasets]
+(Background on this error at: https://sqlalche.me/e/20/f405) >> None
+[2025-09-02: 01:43:18] [dataset_sync] > Error during dataset synchronization: (psycopg2.errors.UndefinedTable) relation "datasets" does not exist
+LINE 2: FROM datasets
+             ^
+
+[SQL: SELECT datasets.id AS datasets_id, datasets.name AS datasets_name, datasets.description AS datasets_description, datasets."datasetType" AS "datasets_datasetType", datasets."s3Path" AS "datasets_s3Path", datasets."createdBy" AS "datasets_createdBy", datasets."createdOn" AS "datasets_createdOn", datasets.active AS datasets_active 
+FROM datasets]
+(Background on this error at: https://sqlalche.me/e/20/f405) >> None
+[2025-09-02: 01:44:01] [dataset_sync] > Error accessing MinIO bucket 'dataset': S3 operation failed; code: InvalidAccessKeyId, message: The Access Key Id you provided does not exist in our records., resource: /dataset, request_id: 186153C675E8C796, host_id: 411bc421bd2f80bc9878e776fea40bf4f4a112865b490a39fb326fa1e5ad1a8e, bucket_name: dataset >> None
+[2025-09-02: 01:44:03] [dataset_sync] > Error accessing MinIO bucket 'dataset': S3 operation failed; code: InvalidAccessKeyId, message: The Access Key Id you provided does not exist in our records., resource: /dataset, request_id: 186153C6DBC9A95D, host_id: 411bc421bd2f80bc9878e776fea40bf4f4a112865b490a39fb326fa1e5ad1a8e, bucket_name: dataset >> None
+[2025-09-02: 01:44:04] [dataset_sync] > Error accessing MinIO bucket 'dataset': S3 operation failed; code: InvalidAccessKeyId, message: The Access Key Id you provided does not exist in our records., resource: /dataset, request_id: 186153C71E0152B9, host_id: 411bc421bd2f80bc9878e776fea40bf4f4a112865b490a39fb326fa1e5ad1a8e, bucket_name: dataset >> None
+[2025-09-02: 01:44:05] [dataset_sync] > Error accessing MinIO bucket 'dataset': S3 operation failed; code: InvalidAccessKeyId, message: The Access Key Id you provided does not exist in our records., resource: /dataset, request_id: 186153C749ADC483, host_id: 411bc421bd2f80bc9878e776fea40bf4f4a112865b490a39fb326fa1e5ad1a8e, bucket_name: dataset >> None
+[2025-09-02: 01:57:47] [inferences] > Error fetching metadata for inference 1 >> (<class 'werkzeug.exceptions.NotFound'>, <NotFound '404: Not Found'>, <traceback object at 0x7f6c17e3e940>)
+Traceback (most recent call last):
+  File "/app/src/routes/inferences.py", line 231, in getInferenceMetadata
+    abort(404, 'Metadata not found')
+  File "/usr/local/lib/python3.11/site-packages/flask/helpers.py", line 274, in abort
+    current_app.aborter(code, *args, **kwargs)
+  File "/usr/local/lib/python3.11/site-packages/werkzeug/exceptions.py", line 861, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.NotFound: 404 Not Found: Metadata not found
+[2025-09-02: 02:08:21] [inferences] > Error fetching metadata for inference 1 >> (<class 'werkzeug.exceptions.NotFound'>, <NotFound '404: Not Found'>, <traceback object at 0x7f7f33ebe540>)
+Traceback (most recent call last):
+  File "/app/src/routes/inferences.py", line 206, in getInferenceMetadata
+    abort(404, 'Metadata not found')
+  File "/usr/local/lib/python3.11/site-packages/flask/helpers.py", line 274, in abort
+    current_app.aborter(code, *args, **kwargs)
+  File "/usr/local/lib/python3.11/site-packages/werkzeug/exceptions.py", line 861, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.NotFound: 404 Not Found: Metadata not found

@@ -8,4 +8,5 @@ class Inference(db.Model):
     name = db.Column(db.String(60), nullable=False)
     baseImageUrl = db.Column(db.String, nullable=False)
     generatedImageUrl = db.Column(db.String, nullable=True)
+    metadataUrl = db.Column(db.String, nullable=True)
     createdOn = db.Column(db.DateTime(), nullable=False)

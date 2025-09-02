@@ -1,7 +1,9 @@
 import os
 import uuid
-from dotenv import load_dotenv
 import datetime
+import requests
+import json
+from dotenv import load_dotenv
 
 from flask import Blueprint, request, jsonify, abort, g
 from logs.logger import logger
@@ -25,6 +27,7 @@ nnClient = NnAPIClient(
 
 # Define router prefix
 inferences = Blueprint('inferences', __name__, url_prefix='/inferences')
+
 
 # ------- All the routes -------
 @inferences.route('/getBaseImgPresignedUrls', methods=['GET'])
@@ -133,6 +136,8 @@ def generateInference():
         logger.info(f'Generating inference for user {g.uid}: {imgObjectKey}')
         json_response = nnClient.generateInference(payload)
         generatedImageUrl = json_response['generatedImgUrl']
+        # Get the metadata URL from NN API response
+        metadataUrl = json_response.get('metadataUrl')
     except Exception:
         logger.exception(f'Error generating inference for {imgObjectKey}')
         abort(500, 'Error generating inference')
@@ -142,10 +147,12 @@ def generateInference():
     # Make new instance of inference model
     new_inference = Inference(
         userId=user_id,
-        modelId=1,  # TODO: Should be set on the web app, for now it's the default model 1
+        # TODO: Should be set on the web app, for now it's the default model 1
+        modelId=1,
         name=name,
         baseImageUrl=baseImageUrl,
         generatedImageUrl=generatedImageUrl,
+        metadataUrl=metadataUrl,  # Add the metadata URL to the database
         createdOn=datetime.datetime.utcnow()
     )
 
@@ -159,3 +166,66 @@ def generateInference():
 
     # Respond with the generatedImageUrl
     return jsonify({'generatedImgUrl': generatedImageUrl}), 200
+
+
+@inferences.route('/getInferenceMetadata/<int:inference_id>', methods=['GET'])
+@auth_required()
+@rate_limit_api(max_attempts=10, window_minutes=5)
+def getInferenceMetadata(inference_id):
+    """
+    Get metadata for a specific inference
+    """
+    try:
+        # Get the inference from database
+        inference = Inference.query.filter_by(
+            id=inference_id,
+            userId=g.uid
+        ).first()
+
+        if not inference:
+            abort(404, 'Inference not found')
+
+        # Assuming metadata is stored alongside the generated image
+        base_object_key = inference.generatedImageUrl.split('/')[-2:]  # Get folder and filename
+        metadata_object_key = f"{g.uid}/{base_object_key[0]}/metadata.json"
+        
+        # Get MinIO client
+        minioClient = getMinioClient()
+        s3Bucket = os.getenv('S3_BUCKET_INFERENCES_RESULTS')
+        
+        logger.info(f'Fetching metadata for inference {inference_id} from MinIO: {metadata_object_key}')
+        
+        try:
+            # Stream the metadata file directly from MinIO
+            response = minioClient.get_object(s3Bucket, metadata_object_key)
+            metadata_content = response.read()
+            response.close()
+            response.release_conn()
+            
+            # Parse JSON content
+            metadata = json.loads(metadata_content.decode('utf-8'))
+            
+            return jsonify({
+                'success': True,
+                'metadata': metadata,
+                'source': 'minio'
+            }), 200
+            
+        except Exception as e:
+            logger.warning(f'Error reading metadata from MinIO: {str(e)}')
+            
+            # Fallback to HTTP URL if available
+            if inference.metadataUrl:
+                response = requests.get(inference.metadataUrl)
+                if response.status_code == 200:
+                    return jsonify({
+                        'success': True,
+                        'metadata': response.json(),
+                        'source': 'url'
+                    }), 200
+
+        abort(404, 'Metadata not found')
+
+    except Exception:
+        logger.exception(f'Error fetching metadata for inference {inference_id}')
+        abort(500, 'Error fetching metadata')

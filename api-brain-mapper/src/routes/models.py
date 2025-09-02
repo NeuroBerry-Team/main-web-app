@@ -233,9 +233,6 @@ def trainModel():
         abort(500)
 
 
-# TODO: Add a status watcher to track status training
-
-
 @models.route('/training-jobs', methods=['GET'])
 @auth_required(["ADMIN", "SUPERADMIN"])
 def getTrainingJobs():
