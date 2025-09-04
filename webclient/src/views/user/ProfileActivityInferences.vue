@@ -163,16 +163,16 @@
             <div class="space-y-4">
               <div>
                 <h3 class="text-lg font-semibold text-gray-700 mb-3">Imagen Original</h3>
-                <div class="bg-gray-100 rounded-lg p-4">
+                <div class="relative">
                   <img 
                     v-if="selectedInference.baseImageUrl"
                     :src="selectedInference.baseImageUrl"
                     :alt="selectedInference.name || 'Imagen original'"
-                    class="w-full h-64 object-cover rounded-lg"
+                    class="w-full h-64 object-contain rounded-lg transition-all duration-300 bg-gray-50"
                     @error="handleImageError"
                     loading="lazy"
                   />
-                  <div v-else class="w-full h-64 flex items-center justify-center text-gray-500">
+                  <div v-else class="w-full h-64 flex items-center justify-center text-gray-500 bg-gray-50 rounded-lg">
                     <span>Imagen no disponible</span>
                   </div>
                 </div>
@@ -290,7 +290,7 @@
                     <canvas 
                       v-if="selectedInference.generatedImageUrl && showBoxControls"
                       ref="imageCanvas"
-                      class="w-full h-64 object-cover rounded-lg transition-all duration-300 border border-gray-200 cursor-pointer"
+                      class="w-full h-64 rounded-lg transition-all duration-300 border border-gray-200 cursor-pointer bg-gray-50"
                       @click="handleCanvasClick"
                       @dblclick="handleCanvasDoubleClick"
                     ></canvas>
@@ -300,7 +300,7 @@
                       v-else-if="selectedInference.generatedImageUrl"
                       :src="currentResultImage"
                       :alt="'Análisis: ' + selectedInference.result"
-                      class="w-full h-64 object-cover rounded-lg transition-all duration-300"
+                      class="w-full h-64 object-contain rounded-lg transition-all duration-300 bg-gray-50"
                       @error="handleImageError"
                     />
                     
@@ -532,6 +532,7 @@ const showModelDetails = ref(false)
 const imageCanvas = ref(null)
 const hiddenImage = ref(null)
 const canvasContext = ref(null)
+const canvasImageBounds = ref(null) // Store image drawing bounds for coordinate conversion
 
 const goBack = () => {
   router.push('/profile') // Always return to the main profile page
@@ -681,7 +682,6 @@ const openInferenceDetail = async (inference) => {
   router.replace({ query: { ...route.query, id: inference.id } })
 
   // Always fetch metadata when opening inference detail
-  console.log('Opening inference detail for:', inference.id)
   await fetchBoxMetadataFromMinio(inference.id)
 }
 
@@ -710,7 +710,7 @@ const backToGallery = () => {
 
 const downloadResults = () => {
   // TODO: Implement download functionality
-  console.log('Download results for inference:', selectedInference.value.id)
+  console.warn('Download functionality not yet implemented')
 }
 
 // Computed property for the current image with selected boxes
@@ -892,7 +892,6 @@ const toggleBoxControls = async () => {
     // If we're entering box control mode and don't have metadata, fetch it
     if (showBoxControls.value) {
       if (!metadataLoaded.value.has(selectedInference.value.id)) {
-        console.log('Loading metadata for box controls...')
         await fetchBoxMetadataFromMinio(selectedInference.value.id)
       }
       
@@ -944,14 +943,6 @@ const fetchBoxMetadataFromMinio = async (inferenceId) => {
         const imageInfo = data.metadata.image_info
         const originalImageSize = imageInfo ? imageInfo.original_size : null
         
-        console.log('Metadata loaded:', {
-          inferenceId,
-          detectionsCount: data.metadata.detections.length,
-          imageInfo,
-          originalImageSize,
-          fullMetadata: data.metadata
-        })
-        
         // Map the detections to detectedBoxes format
         detectedBoxes.value = data.metadata.detections.map((detection, index) => {
           let bbox_normalized = null
@@ -988,8 +979,6 @@ const fetchBoxMetadataFromMinio = async (inferenceId) => {
             class_id: detection.class_id
           }
         })
-        
-        console.log('Created detectedBoxes:', detectedBoxes.value.length)
       }
       
       // Try to draw boxes if canvas is ready and box controls are active
@@ -1124,8 +1113,6 @@ const updateImageWithBoxes = () => {
 
 // Canvas setup and drawing functions
 const onImageLoad = (inference) => {
-  console.log('Image loaded. showBoxControls:', showBoxControls.value, 'canvas:', !!imageCanvas.value, 'hiddenImage:', !!hiddenImage.value, 'detectedBoxes count:', detectedBoxes.value.length)
-  
   // Handle canvas setup for box drawing
   if (showBoxControls.value && imageCanvas.value && hiddenImage.value && detectedBoxes.value.length > 0) {
     nextTick(() => {
@@ -1180,8 +1167,38 @@ const drawImageWithBoxes = () => {
   // Clear canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height)
   
-  // Draw the image
-  ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+  // Calculate dimensions to match object-contain behavior (show full image, maintain aspect ratio)
+  const canvasAspectRatio = canvas.width / canvas.height
+  const imageAspectRatio = img.naturalWidth / img.naturalHeight
+  
+  let drawWidth, drawHeight, drawX, drawY
+  
+  if (imageAspectRatio > canvasAspectRatio) {
+    // Image is wider than canvas - fit to width, letterbox top/bottom
+    drawWidth = canvas.width
+    drawHeight = drawWidth / imageAspectRatio
+    drawX = 0
+    drawY = (canvas.height - drawHeight) / 2
+  } else {
+    // Image is taller than canvas - fit to height, letterbox sides
+    drawHeight = canvas.height
+    drawWidth = drawHeight * imageAspectRatio
+    drawX = (canvas.width - drawWidth) / 2
+    drawY = 0
+  }
+  
+  // Draw the image with object-contain behavior
+  ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight)
+  
+  // Store the image bounds for coordinate conversion in drawBoundingBox
+  canvasImageBounds.value = { 
+    drawX, 
+    drawY, 
+    drawWidth, 
+    drawHeight,
+    scaleX: drawWidth / img.naturalWidth,
+    scaleY: drawHeight / img.naturalHeight
+  }
   
   // Draw visible bounding boxes, but save the selected box for last (to render on top)
   const visibleBoxes = detectedBoxes.value.filter(box => box.visible)
@@ -1213,22 +1230,32 @@ const drawBoundingBox = (ctx, box) => {
     console.warn('Normalized coordinates out of range (0-1):', bbox_normalized, 'for box:', box.label)
   }
   
-  // Get canvas dimensions
+  // Get canvas and image bounds
   const canvas = imageCanvas.value
-  const canvasWidth = canvas.width
-  const canvasHeight = canvas.height
+  const bounds = canvasImageBounds.value
   
-  // Convert normalized coordinates (0-1) to canvas pixels
-  const pixelX1 = Math.round(x1 * canvasWidth)
-  const pixelY1 = Math.round(y1 * canvasHeight)
-  const pixelX2 = Math.round(x2 * canvasWidth)
-  const pixelY2 = Math.round(y2 * canvasHeight)
+  if (!bounds) {
+    console.warn('Canvas image bounds not available for coordinate conversion')
+    return
+  }
+  
+  // Convert normalized coordinates (0-1) to image pixel coordinates, then to canvas coordinates
+  const imagePixelX1 = x1 * hiddenImage.value.naturalWidth
+  const imagePixelY1 = y1 * hiddenImage.value.naturalHeight
+  const imagePixelX2 = x2 * hiddenImage.value.naturalWidth
+  const imagePixelY2 = y2 * hiddenImage.value.naturalHeight
+  
+  // Scale to canvas image size and add offsets for letterboxing
+  const canvasX1 = Math.round(imagePixelX1 * bounds.scaleX + bounds.drawX)
+  const canvasY1 = Math.round(imagePixelY1 * bounds.scaleY + bounds.drawY)
+  const canvasX2 = Math.round(imagePixelX2 * bounds.scaleX + bounds.drawX)
+  const canvasY2 = Math.round(imagePixelY2 * bounds.scaleY + bounds.drawY)
   
   // Calculate rectangle position and dimensions (ensuring positive dimensions)
-  const x = Math.min(pixelX1, pixelX2)
-  const y = Math.min(pixelY1, pixelY2)
-  const width = Math.abs(pixelX2 - pixelX1)
-  const height = Math.abs(pixelY2 - pixelY1)
+  const x = Math.min(canvasX1, canvasX2)
+  const y = Math.min(canvasY1, canvasY2)
+  const width = Math.abs(canvasX2 - canvasX1)
+  const height = Math.abs(canvasY2 - canvasY1)
   
   // Ensure we have valid dimensions
   if (width <= 0 || height <= 0) {
@@ -1324,8 +1351,11 @@ const handleCanvasDoubleClick = (event) => {
 
 const findBoxAtPosition = (x, y) => {
   const canvas = imageCanvas.value
-  const canvasWidth = canvas.width
-  const canvasHeight = canvas.height
+  const bounds = canvasImageBounds.value
+  
+  if (!bounds) {
+    return null // Can't find boxes without bounds
+  }
   
   // Check boxes in reverse order (last drawn on top)
   for (let i = detectedBoxes.value.length - 1; i >= 0; i--) {
@@ -1333,16 +1363,25 @@ const findBoxAtPosition = (x, y) => {
     if (!box.visible || !box.bbox_normalized) continue
     
     // Convert normalized coordinates to canvas pixels (same logic as drawBoundingBox)
-    const pixelX1 = Math.round(box.bbox_normalized.x1 * canvasWidth)
-    const pixelY1 = Math.round(box.bbox_normalized.y1 * canvasHeight)
-    const pixelX2 = Math.round(box.bbox_normalized.x2 * canvasWidth)
-    const pixelY2 = Math.round(box.bbox_normalized.y2 * canvasHeight)
+    const { x1, y1, x2, y2 } = box.bbox_normalized
+    
+    // Convert normalized coordinates to image pixel coordinates, then to canvas coordinates
+    const imagePixelX1 = x1 * hiddenImage.value.naturalWidth
+    const imagePixelY1 = y1 * hiddenImage.value.naturalHeight
+    const imagePixelX2 = x2 * hiddenImage.value.naturalWidth
+    const imagePixelY2 = y2 * hiddenImage.value.naturalHeight
+    
+    // Scale to canvas image size and add offsets for letterboxing
+    const canvasX1 = Math.round(imagePixelX1 * bounds.scaleX + bounds.drawX)
+    const canvasY1 = Math.round(imagePixelY1 * bounds.scaleY + bounds.drawY)
+    const canvasX2 = Math.round(imagePixelX2 * bounds.scaleX + bounds.drawX)
+    const canvasY2 = Math.round(imagePixelY2 * bounds.scaleY + bounds.drawY)
     
     // Calculate rectangle bounds (ensuring positive dimensions)
-    const boxX = Math.min(pixelX1, pixelX2)
-    const boxY = Math.min(pixelY1, pixelY2)
-    const boxWidth = Math.abs(pixelX2 - pixelX1)
-    const boxHeight = Math.abs(pixelY2 - pixelY1)
+    const boxX = Math.min(canvasX1, canvasX2)
+    const boxY = Math.min(canvasY1, canvasY2)
+    const boxWidth = Math.abs(canvasX2 - canvasX1)
+    const boxHeight = Math.abs(canvasY2 - canvasY1)
     
     if (x >= boxX && x <= boxX + boxWidth && y >= boxY && y <= boxY + boxHeight) {
       return box
