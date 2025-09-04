@@ -63,27 +63,32 @@
             <!-- Gallery Grid -->
             <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               <div
-                v-for="inference in inferences"
+                v-for="inference in inferencesWithConfidence"
                 :key="inference.id"
                 @click="openInferenceDetail(inference)"
-                class="group cursor-pointer bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden"
+                class="gallery-item group cursor-pointer bg-white rounded-xl shadow-md overflow-hidden"
               >
                 <!-- Image Thumbnail -->
+                                <!-- Image Thumbnail -->
                 <div class="aspect-square bg-gray-100 relative overflow-hidden">
                   <img 
                     v-if="inference.baseImageUrl"
-                    :src="inference.baseImageUrl"
+                    :src="getCachedImageUrl(inference.baseImageUrl)"
                     :alt="inference.result"
-                    class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                    class="w-full h-full object-cover transition-opacity duration-300"
                     @error="handleImageError"
+                    @load="onImageLoad(inference)"
+                    loading="lazy"
+                    decoding="async"
                   />
+                  
                   <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
                     <span class="text-3xl">🍓</span>
                   </div>
                   
                   <!-- Overlay with confidence -->
-                  <div v-if="getAverageConfidence(inference)" class="absolute top-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded-full">
-                    {{ Math.round(getAverageConfidence(inference) * 100) }}%
+                  <div v-if="inference.confidence" class="absolute top-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded-full">
+                    {{ Math.round(inference.confidence * 100) }}%
                   </div>
                   
                   <!-- Analysis result overlay -->
@@ -165,6 +170,7 @@
                     :alt="selectedInference.name || 'Imagen original'"
                     class="w-full h-64 object-cover rounded-lg"
                     @error="handleImageError"
+                    loading="lazy"
                   />
                   <div v-else class="w-full h-64 flex items-center justify-center text-gray-500">
                     <span>Imagen no disponible</span>
@@ -371,15 +377,44 @@
                     <span class="text-gray-600">Hora</span>
                     <span class="text-gray-800">{{ formatTime(selectedInference.createdOn) }}</span>
                   </div>
-                  <div v-if="getAverageConfidence(selectedInference)" class="flex justify-between items-center py-2 border-b border-gray-200">
+                  <div v-if="confidenceCache.get(selectedInference.id)" class="flex justify-between items-center py-2 border-b border-gray-200">
                     <span class="text-gray-600">Confianza Promedio</span>
-                    <span class="font-semibold text-green-600">{{ Math.round(getAverageConfidence(selectedInference) * 100) }}%</span>
+                    <span class="font-semibold text-green-600">{{ Math.round(confidenceCache.get(selectedInference.id) * 100) }}%</span>
                   </div>
                   <div v-if="selectedInference.name" class="flex justify-between items-center py-2 border-b border-gray-200">
                     <span class="text-gray-600">Nombre</span>
                     <span class="text-gray-800">{{ selectedInference.name }}</span>
                   </div>
-                  
+                  <!-- Class Count Section -->
+                  <div v-if="selectedInference" class="py-2 border-b border-gray-200">
+                    <div class="flex flex-col space-y-2">
+                      <span class="text-gray-600">Conteo por Clase:</span>
+                      
+                      <!-- Loading state -->
+                      <div v-if="!metadataLoaded.has(selectedInference.id)" class="pl-4 flex items-center space-x-2 text-sm text-gray-500">
+                        <div class="animate-spin text-xs">⚙️</div>
+                        <span>Calculando conteos...</span>
+                      </div>
+                      
+                      <!-- Class counts -->
+                      <div v-else-if="classCountSummary && Object.keys(classCountSummary).length > 0" class="pl-4 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                        <div v-for="(count, className) in classCountSummary" :key="className" 
+                            class="flex justify-between bg-gray-50 px-3 py-1 rounded">
+                          <span class="text-gray-700">{{ className }}:</span>
+                          <span class="font-medium text-gray-900">{{ count }}</span>
+                        </div>
+                      </div>
+                      
+                      <!-- Show all classes with 0 count when no detections -->
+                      <div v-else class="pl-4 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                        <div v-for="(label, classId) in getAllClassLabels()" :key="classId" 
+                            class="flex justify-between bg-gray-50 px-3 py-1 rounded">
+                          <span class="text-gray-700">{{ label }}:</span>
+                          <span class="font-medium text-gray-900">0</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                   <!-- Model Information Section -->
                   <div class="py-2 border-b border-gray-200">
                     <div class="flex justify-between items-center">
@@ -479,6 +514,15 @@ const selectedBox = ref(null) // Track which box is currently selected/highlight
 
 // Confidence calculation cache
 const confidenceCache = ref(new Map())
+const metadataLoaded = ref(new Set()) // Track which inferences have loaded metadata
+
+// Computed property to get confidence values efficiently
+const inferencesWithConfidence = computed(() => {
+  return inferences.value.map(inference => ({
+    ...inference,
+    confidence: confidenceCache.value.get(inference.id) || null
+  }))
+})
 
 // Model details cache and toggle state
 const modelDetailsCache = ref(new Map())
@@ -488,7 +532,6 @@ const showModelDetails = ref(false)
 const imageCanvas = ref(null)
 const hiddenImage = ref(null)
 const canvasContext = ref(null)
-const canvasScale = ref({ x: 1, y: 1 })
 
 const goBack = () => {
   router.push('/profile') // Always return to the main profile page
@@ -516,8 +559,7 @@ onMounted(async () => {
   if (inferenceId && inferences.value.length > 0) {
     const inference = inferences.value.find(i => i.id == inferenceId)
     if (inference) {
-      selectedInference.value = inference
-      detectedBoxes.value = [] // Initialize empty detected boxes
+      await openInferenceDetail(inference)
     }
   }
 })
@@ -525,6 +567,12 @@ onMounted(async () => {
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
   window.removeEventListener('resize', handleResize)
+  
+  // Clear preloaded images set
+  preloadedImages.value.clear()
+  
+  // Clear metadata loaded tracking
+  metadataLoaded.value.clear()
 })
 
 const formatActivityTime = (timestamp) => {
@@ -599,9 +647,11 @@ const loadInferences = async (page = 1) => {
       }
       hasMore.value = data.pagination?.has_next || false
       
-      // Load confidence data for the newly loaded inferences
+      // Preload images after a short delay to avoid conflicts with initial render
       nextTick(() => {
-        loadConfidenceForInferences()
+        setTimeout(() => {
+          preloadGalleryImages()
+        }, 500)
       })
     } else {
       throw new Error(data.error || 'Failed to fetch inferences')
@@ -621,19 +671,27 @@ const loadMoreInferences = async () => {
   await loadInferences(currentPage.value)
 }
 
-const openInferenceDetail = (inference) => {
+const openInferenceDetail = async (inference) => {
   selectedInference.value = inference
-  // Reset detected boxes - they will be populated from metadata when entering edit mode
+  // Reset detected boxes - they will be populated from metadata
   detectedBoxes.value = []
   // Reset model details toggle state
   showModelDetails.value = false
   // Update URL to include inference ID
   router.replace({ query: { ...route.query, id: inference.id } })
+
+  // Always fetch metadata when opening inference detail
+  console.log('Opening inference detail for:', inference.id)
+  await fetchBoxMetadataFromMinio(inference.id)
 }
 
 const closeInferenceDetail = () => {
   selectedInference.value = null
   showModelDetails.value = false
+  // Reset box control state
+  showBoxControls.value = false
+  detectedBoxes.value = []
+  selectedBox.value = null
   // Remove ID from URL and go back to profile
   router.push('/profile')
 }
@@ -641,6 +699,10 @@ const closeInferenceDetail = () => {
 const backToGallery = () => {
   selectedInference.value = null
   showModelDetails.value = false
+  // Reset box control state
+  showBoxControls.value = false
+  detectedBoxes.value = []
+  selectedBox.value = null
   // Remove ID from URL but stay in gallery
   const { id, ...queryWithoutId } = route.query
   router.replace({ query: queryWithoutId })
@@ -681,19 +743,6 @@ const selectBox = (box) => {
   }
 }
 
-// Calculate average confidence for an inference
-const getAverageConfidence = (inference) => {
-  if (!inference || !inference.id) return null
-  
-  // Check if we have it cached
-  if (confidenceCache.value.has(inference.id)) {
-    return confidenceCache.value.get(inference.id)
-  }
-  
-  // Return null for now, will be calculated when metadata is loaded
-  return null
-}
-
 // Calculate and cache average confidence from metadata
 const calculateAverageConfidence = (inferenceId, detections) => {
   if (!detections || detections.length === 0) {
@@ -711,35 +760,59 @@ const calculateAverageConfidence = (inferenceId, detections) => {
   return averageConfidence
 }
 
-// Load confidence for all visible inferences in the gallery
-const loadConfidenceForInferences = async () => {
-  // Only load confidence for inferences that don't have it cached yet
-  const inferencesToLoad = inferences.value.filter(inf => !confidenceCache.value.has(inf.id))
-  
-  if (inferencesToLoad.length === 0) return
-  
-  // Load confidence for each inference (could be optimized with batch loading)
-  const promises = inferencesToLoad.map(async (inference) => {
-    try {
-      const apiUrl = import.meta.env.VITE_API_BASE_URL
-      const response = await fetch(`${apiUrl}/inferences/getInferenceMetadata/${inference.id}`, {
-        method: 'GET',
-        credentials: 'include'
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        if (data.success && data.metadata && data.metadata.detections) {
-          calculateAverageConfidence(inference.id, data.metadata.detections)
-        }
+// Image caching functions
+const preloadedImages = ref(new Set()) // Track which images have been preloaded
+
+const getCachedImageUrl = (originalUrl) => {
+  // For now, just return the original URL and let CSS handle the resizing
+  // This is not ideal but avoids the double download issue
+  // TODO: Implement server-side thumbnail generation
+  return originalUrl
+}
+
+const getFullSizeImageUrl = (originalUrl) => {
+  // For detail views, return the original URL
+  return originalUrl
+}
+
+const preloadImage = async (imageUrl) => {
+  if (!imageUrl || preloadedImages.value.has(imageUrl)) {
+    return
+  }
+
+  try {
+    // Create a hidden image element to trigger browser caching
+    const img = new Image()
+    img.crossOrigin = 'use-credentials'
+    
+    await new Promise((resolve, reject) => {
+      img.onload = () => {
+        preloadedImages.value.add(imageUrl)
+        resolve()
       }
-    } catch (error) {
-      // Silently fail for individual confidence loading
-      confidenceCache.value.set(inference.id, null)
-    }
-  })
+      img.onerror = reject
+      img.src = imageUrl
+    })
+  } catch (error) {
+    console.warn('Failed to preload image:', imageUrl, error)
+  }
+}
+
+const preloadGalleryImages = async () => {
+  // Preload first few images to improve performance
+  const visibleInferences = inferences.value.slice(0, 10)
   
-  await Promise.allSettled(promises)
+  for (const inference of visibleInferences) {
+    if (inference.baseImageUrl) {
+      try {
+        await preloadImage(inference.baseImageUrl)
+        // Small delay between each image
+        await new Promise(resolve => setTimeout(resolve, 100))
+      } catch (error) {
+        console.warn('Failed to preload image:', inference.baseImageUrl, error)
+      }
+    }
+  }
 }
 
 // Model details functions
@@ -816,12 +889,22 @@ const toggleBoxControls = async () => {
     
     showBoxControls.value = !showBoxControls.value
     
-    // Fetch metadata when entering edit mode
+    // If we're entering box control mode and don't have metadata, fetch it
     if (showBoxControls.value) {
-      await fetchBoxMetadataFromMinio(selectedInference.value.id)
+      if (!metadataLoaded.value.has(selectedInference.value.id)) {
+        console.log('Loading metadata for box controls...')
+        await fetchBoxMetadataFromMinio(selectedInference.value.id)
+      }
+      
+      // Try to setup canvas after metadata is loaded
+      nextTick(() => {
+        if (imageCanvas.value && hiddenImage.value && detectedBoxes.value.length > 0) {
+          setupCanvas()
+          drawImageWithBoxes()
+        }
+      })
     } else {
-      // Clear detected boxes and selection when exiting edit mode
-      detectedBoxes.value = []
+      // Clear selection when exiting edit mode but keep detectedBoxes for class counts
       selectedBox.value = null
       if (canvasContext.value) {
         canvasContext.value.clearRect(0, 0, imageCanvas.value.width, imageCanvas.value.height)
@@ -849,24 +932,67 @@ const fetchBoxMetadataFromMinio = async (inferenceId) => {
     const data = await response.json()
     
     if (data.success && data.metadata) {
+      // Mark metadata as loaded
+      metadataLoaded.value.add(inferenceId)
+      
       // Calculate and cache average confidence
       calculateAverageConfidence(inferenceId, data.metadata.detections)
       
-      // Map the detections to detectedBoxes format
-      detectedBoxes.value = data.metadata.detections.map((detection, index) => ({
-        id: index, // Use index as unique ID
-        label: getClassLabel(detection.class_id),
-        confidence: detection.confidence,
-        visible: true, // All boxes visible by default
-        color: getBoxColor(detection.class_id),
-        bbox: detection.bbox, // Original pixel coordinates (for reference)
-        bbox_normalized: detection.bbox_normalized, // Normalized coordinates (0-1) - THIS IS WHAT WE'LL USE
-        center_point: detection.center_point,
-        area: detection.area,
-        class_id: detection.class_id
-      }))
+      // Only update detectedBoxes if not already populated (prevent double processing)
+      if (detectedBoxes.value.length === 0) {
+        // Get original image dimensions from metadata
+        const imageInfo = data.metadata.image_info
+        const originalImageSize = imageInfo ? imageInfo.original_size : null
+        
+        console.log('Metadata loaded:', {
+          inferenceId,
+          detectionsCount: data.metadata.detections.length,
+          imageInfo,
+          originalImageSize,
+          fullMetadata: data.metadata
+        })
+        
+        // Map the detections to detectedBoxes format
+        detectedBoxes.value = data.metadata.detections.map((detection, index) => {
+          let bbox_normalized = null
+          
+          // Calculate normalized coordinates using original image dimensions
+          if (detection.bbox && originalImageSize) {
+            const [originalHeight, originalWidth] = originalImageSize
+            bbox_normalized = normalizeCoordinates(detection.bbox, [originalWidth, originalHeight])
+            
+            // Validate normalization was successful
+            if (!bbox_normalized) {
+              console.error(`Failed to normalize coordinates for box ${index}:`, detection.bbox)
+            }
+          } else {
+            console.warn(`Box ${index} missing bbox or image size:`, {
+              hasBbox: !!detection.bbox,
+              hasImageSize: !!originalImageSize,
+              bbox: detection.bbox,
+              imageSize: originalImageSize,
+              detection: detection
+            })
+          }
+          
+          return {
+            id: index, // Use index as unique ID
+            label: getClassLabel(detection.class_id),
+            confidence: detection.confidence,
+            visible: true, // All boxes visible by default
+            color: getBoxColor(detection.class_id),
+            bbox: detection.bbox, // Original pixel coordinates (for reference)
+            bbox_normalized: bbox_normalized, // Properly normalized coordinates (0-1 range)
+            center_point: detection.center_point,
+            area: detection.area,
+            class_id: detection.class_id
+          }
+        })
+        
+        console.log('Created detectedBoxes:', detectedBoxes.value.length)
+      }
       
-      // Try to draw boxes if canvas is ready
+      // Try to draw boxes if canvas is ready and box controls are active
       nextTick(() => {
         if (showBoxControls.value && imageCanvas.value && hiddenImage.value) {
           setupCanvas()
@@ -875,9 +1001,94 @@ const fetchBoxMetadataFromMinio = async (inferenceId) => {
       })
     } else {
       console.error('Failed to load metadata:', data.error || 'Unknown error')
+      // Mark as loaded even on failure to stop loading state
+      metadataLoaded.value.add(inferenceId)
     }
   } catch (error) {
     console.error('Error fetching metadata from Minio:', error)
+    // Mark as loaded even on error to stop loading state
+    metadataLoaded.value.add(inferenceId)
+  }
+}
+
+/**
+ * Normalize bounding box coordinates to 0-1 range for resolution-independent storage
+ * 
+ * @param {Object|Array} bbox - Bounding box coordinates (either {x1,y1,x2,y2} object or [x1,y1,x2,y2] array)
+ * @param {Array} imageSize - [width, height] of the original image in pixels
+ * @returns {Object|null} Normalized coordinates {x1,y1,x2,y2} in 0-1 range, or null if invalid
+ * 
+ * The normalized coordinate system ensures that:
+ * - All coordinates are between 0 and 1
+ * - x1,y1 represents the top-left corner
+ * - x2,y2 represents the bottom-right corner
+ * - x1 <= x2 and y1 <= y2 (enforced by this function)
+ * - Coordinates can be scaled to any canvas/display size by multiplying by target dimensions
+ */
+const normalizeCoordinates = (bbox, imageSize) => {
+  const [imageWidth, imageHeight] = imageSize
+  
+  // Handle both array format [x1, y1, x2, y2] and object format {x1, y1, x2, y2}
+  let x1, y1, x2, y2;
+  
+  if (Array.isArray(bbox)) {
+    [x1, y1, x2, y2] = bbox;
+  } else if (bbox && typeof bbox === 'object') {
+    ({ x1, y1, x2, y2 } = bbox);
+  } else {
+    console.error('Invalid bbox format:', bbox);
+    return null;
+  }
+  
+  // Normalize coordinates to 0-1 range
+  const normalized = {
+    x1: Math.max(0, Math.min(1, x1 / imageWidth)),
+    y1: Math.max(0, Math.min(1, y1 / imageHeight)),
+    x2: Math.max(0, Math.min(1, x2 / imageWidth)),
+    y2: Math.max(0, Math.min(1, y2 / imageHeight))
+  };
+  
+  // Ensure x1 <= x2 and y1 <= y2 for consistent box drawing
+  return {
+    x1: Math.min(normalized.x1, normalized.x2),
+    y1: Math.min(normalized.y1, normalized.y2),
+    x2: Math.max(normalized.x1, normalized.x2),
+    y2: Math.max(normalized.y1, normalized.y2)
+  };
+}
+
+const classCountSummary = computed(() => {
+  if (!detectedBoxes.value || !selectedInference.value || !metadataLoaded.value.has(selectedInference.value.id)) {
+    return null
+  }
+  
+  // Initialize all classes with 0
+  const allClasses = getAllClassLabels()
+  const counts = {}
+  
+  // Initialize all classes with 0
+  Object.values(allClasses).forEach(label => {
+    counts[label] = 0
+  })
+  
+  // Count detected boxes by their actual labels
+  detectedBoxes.value.forEach(box => {
+    const label = box.label || getClassLabel(box.class_id)
+    if (label && counts.hasOwnProperty(label)) {
+      counts[label] += 1
+    }
+  })
+  
+  return counts
+})
+
+const getAllClassLabels = () => {
+  return {
+    0: 'C5 DarkRed',
+    1: 'C4 BrightRed', 
+    2: 'C3 Orange (Red dot)',
+    3: 'C2 Green',
+    4: 'C1 Boton'
   }
 }
 
@@ -912,8 +1123,11 @@ const updateImageWithBoxes = () => {
 }
 
 // Canvas setup and drawing functions
-const onImageLoad = () => {
-  if (showBoxControls.value && imageCanvas.value && hiddenImage.value) {
+const onImageLoad = (inference) => {
+  console.log('Image loaded. showBoxControls:', showBoxControls.value, 'canvas:', !!imageCanvas.value, 'hiddenImage:', !!hiddenImage.value, 'detectedBoxes count:', detectedBoxes.value.length)
+  
+  // Handle canvas setup for box drawing
+  if (showBoxControls.value && imageCanvas.value && hiddenImage.value && detectedBoxes.value.length > 0) {
     nextTick(() => {
       setupCanvas()
       drawImageWithBoxes()
@@ -923,6 +1137,10 @@ const onImageLoad = () => {
 
 const setupCanvas = () => {
   if (!imageCanvas.value || !hiddenImage.value) {
+    console.warn('Canvas setup failed: missing canvas or image', {
+      canvas: !!imageCanvas.value,
+      image: !!hiddenImage.value
+    })
     return
   }
   
@@ -945,8 +1163,15 @@ const setupCanvas = () => {
 
 const drawImageWithBoxes = () => {
   if (!canvasContext.value || !hiddenImage.value) {
+    console.warn('Cannot draw: missing context or image', {
+      context: !!canvasContext.value,
+      image: !!hiddenImage.value
+    })
     return
   }
+  
+  // Validate coordinate system before drawing (only show warnings for real issues)
+  const coordinateIssues = validateCoordinateSystem()
   
   const ctx = canvasContext.value
   const canvas = imageCanvas.value
@@ -964,7 +1189,7 @@ const drawImageWithBoxes = () => {
   const selectedBoxToDrawLast = visibleBoxes.find(box => box === selectedBox.value)
   
   // Draw all non-selected boxes first
-  nonSelectedBoxes.forEach(box => {
+  nonSelectedBoxes.forEach((box, index) => {
     drawBoundingBox(ctx, box)
   })
   
@@ -977,8 +1202,15 @@ const drawImageWithBoxes = () => {
 const drawBoundingBox = (ctx, box) => {
   const { bbox_normalized, color, label, confidence } = box
   
-  if (!bbox_normalized) {
+  if (!bbox_normalized || typeof bbox_normalized !== 'object') {
+    console.warn('Missing or invalid normalized coordinates for box:', box.label, bbox_normalized)
     return
+  }
+  
+  // Validate normalized coordinates are in 0-1 range
+  const { x1, y1, x2, y2 } = bbox_normalized
+  if (x1 < 0 || x1 > 1 || y1 < 0 || y1 > 1 || x2 < 0 || x2 > 1 || y2 < 0 || y2 > 1) {
+    console.warn('Normalized coordinates out of range (0-1):', bbox_normalized, 'for box:', box.label)
   }
   
   // Get canvas dimensions
@@ -987,16 +1219,22 @@ const drawBoundingBox = (ctx, box) => {
   const canvasHeight = canvas.height
   
   // Convert normalized coordinates (0-1) to canvas pixels
-  const x1 = bbox_normalized.x1 * canvasWidth
-  const y1 = bbox_normalized.y1 * canvasHeight
-  const x2 = bbox_normalized.x2 * canvasWidth
-  const y2 = bbox_normalized.y2 * canvasHeight
+  const pixelX1 = Math.round(x1 * canvasWidth)
+  const pixelY1 = Math.round(y1 * canvasHeight)
+  const pixelX2 = Math.round(x2 * canvasWidth)
+  const pixelY2 = Math.round(y2 * canvasHeight)
   
-  // Calculate rectangle position and dimensions
-  const x = Math.min(x1, x2)
-  const y = Math.min(y1, y2)
-  const width = Math.abs(x2 - x1)
-  const height = Math.abs(y2 - y1)
+  // Calculate rectangle position and dimensions (ensuring positive dimensions)
+  const x = Math.min(pixelX1, pixelX2)
+  const y = Math.min(pixelY1, pixelY2)
+  const width = Math.abs(pixelX2 - pixelX1)
+  const height = Math.abs(pixelY2 - pixelY1)
+  
+  // Ensure we have valid dimensions
+  if (width <= 0 || height <= 0) {
+    console.warn('Invalid box dimensions:', { width, height, box: box.label, normalized: bbox_normalized })
+    return
+  }
   
   // Check if this box is selected for highlighting
   const isSelected = selectedBox.value === box
@@ -1089,28 +1327,59 @@ const findBoxAtPosition = (x, y) => {
   const canvasWidth = canvas.width
   const canvasHeight = canvas.height
   
-  // Check boxes in reverse order (top to bottom rendering)
+  // Check boxes in reverse order (last drawn on top)
   for (let i = detectedBoxes.value.length - 1; i >= 0; i--) {
     const box = detectedBoxes.value[i]
     if (!box.visible || !box.bbox_normalized) continue
     
-    // Convert normalized coordinates to canvas pixels
-    const x1 = box.bbox_normalized.x1 * canvasWidth
-    const y1 = box.bbox_normalized.y1 * canvasHeight
-    const x2 = box.bbox_normalized.x2 * canvasWidth
-    const y2 = box.bbox_normalized.y2 * canvasHeight
+    // Convert normalized coordinates to canvas pixels (same logic as drawBoundingBox)
+    const pixelX1 = Math.round(box.bbox_normalized.x1 * canvasWidth)
+    const pixelY1 = Math.round(box.bbox_normalized.y1 * canvasHeight)
+    const pixelX2 = Math.round(box.bbox_normalized.x2 * canvasWidth)
+    const pixelY2 = Math.round(box.bbox_normalized.y2 * canvasHeight)
     
-    // Calculate rectangle bounds
-    const boxX = Math.min(x1, x2)
-    const boxY = Math.min(y1, y2)
-    const boxWidth = Math.abs(x2 - x1)
-    const boxHeight = Math.abs(y2 - y1)
+    // Calculate rectangle bounds (ensuring positive dimensions)
+    const boxX = Math.min(pixelX1, pixelX2)
+    const boxY = Math.min(pixelY1, pixelY2)
+    const boxWidth = Math.abs(pixelX2 - pixelX1)
+    const boxHeight = Math.abs(pixelY2 - pixelY1)
     
     if (x >= boxX && x <= boxX + boxWidth && y >= boxY && y <= boxY + boxHeight) {
       return box
     }
   }
   return null
+}
+
+// Utility function to validate coordinate system integrity
+const validateCoordinateSystem = () => {
+  const issues = []
+  
+  detectedBoxes.value.forEach((box, index) => {
+    if (!box.bbox_normalized) {
+      issues.push(`Box ${index} (${box.label}): Missing normalized coordinates`)
+      return
+    }
+    
+    const { x1, y1, x2, y2 } = box.bbox_normalized
+    
+    // Check if coordinates are in valid 0-1 range
+    if (x1 < 0 || x1 > 1 || y1 < 0 || y1 > 1 || x2 < 0 || x2 > 1 || y2 < 0 || y2 > 1) {
+      issues.push(`Box ${index} (${box.label}): Coordinates out of 0-1 range: ${JSON.stringify(box.bbox_normalized)}`)
+    }
+    
+    // Check if box has positive dimensions
+    if (Math.abs(x2 - x1) <= 0 || Math.abs(y2 - y1) <= 0) {
+      issues.push(`Box ${index} (${box.label}): Invalid dimensions: ${JSON.stringify(box.bbox_normalized)}`)
+    }
+  })
+  
+  if (issues.length > 0) {
+    console.warn('Coordinate system validation failed:', issues.length, 'issues found')
+    return issues
+  }
+  
+  return issues
 }
 
 // Window resize handler to adjust canvas
@@ -1124,8 +1393,7 @@ const handleResize = () => {
 }
 
 const handleImageError = (event) => {
-  event.target.style.display = 'none'
-  event.target.parentNode.innerHTML = '<div class="w-full h-64 flex items-center justify-center text-gray-500">Imagen no disponible</div>'
+  event.target.src = '/frambuesas_1.jpg' // Fallback image
 }
 </script>
 
@@ -1160,5 +1428,24 @@ const handleImageError = (event) => {
 
 .modal-container:hover {
   transform: scale(1.01) !important;
+}
+
+.gallery-item {
+  transition: box-shadow 0.2s ease !important;
+  will-change: box-shadow !important;
+}
+
+.gallery-item:hover {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+  transform: translateY(-2px) !important;
+}
+
+.gallery-item img {
+  transition: transform 0.2s ease !important;
+  will-change: transform !important;
+}
+
+.gallery-item:hover img {
+  transform: scale(1.05) !important;
 }
 </style>
