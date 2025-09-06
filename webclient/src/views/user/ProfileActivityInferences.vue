@@ -1073,32 +1073,32 @@ const classCountSummary = computed(() => {
 
 const getAllClassLabels = () => {
   return {
-    0: 'C5 DarkRed',
+    2: 'C5 DarkRed',
     1: 'C4 BrightRed', 
-    2: 'C3 Orange (Red dot)',
+    4: 'C3 Orange (Red dot)',
     3: 'C2 Green',
-    4: 'C1 Boton'
+    0: 'C1 Boton'
   }
 }
 
 const getClassLabel = (classId) => {
   const classLabels = {
-    0: 'C5 DarkRed',
+    2: 'C5 DarkRed',
     1: 'C4 BrightRed',
-    2: 'C3 Orange (Red dot)',
+    4: 'C3 Orange (Red dot)',
     3: 'C2 Green',
-    4: 'C1 Boton',
+    0: 'C1 Boton',
   }
   return classLabels[classId] || `Clase ${classId}`
 }
 
 const getBoxColor = (classId) => {
   const classColors = {
-    0: '#991B1B', // C5 DarkRed
+    2: '#991B1B', // C5 DarkRed
     1: '#EF4444', // C4 BrightRed
-    2: '#F59E0B', // C3 Orange
+    4: '#F59E0B', // C3 Orange
     3: '#22C55E', // C2 Green
-    4: '#6B7280', // C1 Boton (gray)
+    0: '#6B7280', // C1 Boton (gray)
   }
   return classColors[classId] || '#6366F1' // Default purple color
 }
@@ -1156,9 +1156,6 @@ const drawImageWithBoxes = () => {
     })
     return
   }
-  
-  // Validate coordinate system before drawing (only show warnings for real issues)
-  const coordinateIssues = validateCoordinateSystem()
   
   const ctx = canvasContext.value
   const canvas = imageCanvas.value
@@ -1390,36 +1387,6 @@ const findBoxAtPosition = (x, y) => {
   return null
 }
 
-// Utility function to validate coordinate system integrity
-const validateCoordinateSystem = () => {
-  const issues = []
-  
-  detectedBoxes.value.forEach((box, index) => {
-    if (!box.bbox_normalized) {
-      issues.push(`Box ${index} (${box.label}): Missing normalized coordinates`)
-      return
-    }
-    
-    const { x1, y1, x2, y2 } = box.bbox_normalized
-    
-    // Check if coordinates are in valid 0-1 range
-    if (x1 < 0 || x1 > 1 || y1 < 0 || y1 > 1 || x2 < 0 || x2 > 1 || y2 < 0 || y2 > 1) {
-      issues.push(`Box ${index} (${box.label}): Coordinates out of 0-1 range: ${JSON.stringify(box.bbox_normalized)}`)
-    }
-    
-    // Check if box has positive dimensions
-    if (Math.abs(x2 - x1) <= 0 || Math.abs(y2 - y1) <= 0) {
-      issues.push(`Box ${index} (${box.label}): Invalid dimensions: ${JSON.stringify(box.bbox_normalized)}`)
-    }
-  })
-  
-  if (issues.length > 0) {
-    console.warn('Coordinate system validation failed:', issues.length, 'issues found')
-    return issues
-  }
-  
-  return issues
-}
 
 // Window resize handler to adjust canvas
 const handleResize = () => {
