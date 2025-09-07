@@ -161,8 +161,8 @@ def generateInference():
         logger.exception(f"Error saving in DB inference of {imgObjectKey}")
         abort(500, "Error while saving inference")
 
-    # Respond with the generatedImageUrl
-    return jsonify({"generatedImgUrl": generatedImageUrl}), 200
+    # Respond with the generatedImageUrl and id
+    return jsonify({"generatedImgUrl": generatedImageUrl, "id": new_inference.id, "baseImageUrl": baseImageUrl}), 200
 
 
 @inferences.route("/getInferenceMetadata/<int:inference_id>", methods=["GET"])

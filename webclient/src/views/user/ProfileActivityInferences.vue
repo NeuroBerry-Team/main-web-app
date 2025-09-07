@@ -65,11 +65,18 @@
               <div
                 v-for="inference in inferencesWithConfidence"
                 :key="inference.id"
-                @click="openInferenceDetail(inference)"
-                class="gallery-item group cursor-pointer bg-white rounded-xl shadow-md overflow-hidden"
+                @click="() => openInferenceDetail(inference)"
+                :class="['gallery-item group cursor-pointer bg-white rounded-xl shadow-md overflow-hidden transition-all duration-200', 
+                         openingInference ? 'opacity-75 pointer-events-none' : 'hover:shadow-lg']"
               >
+                <!-- Loading overlay for when opening inference -->
+                <div v-if="openingInference" class="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center z-10 rounded-xl">
+                  <div class="text-white text-sm bg-black bg-opacity-50 px-3 py-1 rounded-full">
+                    Cargando...
+                  </div>
+                </div>
+                
                 <!-- Image Thumbnail -->
-                                <!-- Image Thumbnail -->
                 <div class="aspect-square bg-gray-100 relative overflow-hidden">
                   <img 
                     v-if="inference.baseImageUrl"
@@ -377,9 +384,9 @@
                     <span class="text-gray-600">Hora</span>
                     <span class="text-gray-800">{{ formatTime(selectedInference.createdOn) }}</span>
                   </div>
-                  <div v-if="confidenceCache.get(selectedInference.id)" class="flex justify-between items-center py-2 border-b border-gray-200">
+                  <div v-if="getCachedConfidence(selectedInference.id)" class="flex justify-between items-center py-2 border-b border-gray-200">
                     <span class="text-gray-600">Confianza Promedio</span>
-                    <span class="font-semibold text-green-600">{{ Math.round(confidenceCache.get(selectedInference.id) * 100) }}%</span>
+                    <span class="font-semibold text-green-600">{{ Math.round(getCachedConfidence(selectedInference.id) * 100) }}%</span>
                   </div>
                   <div v-if="selectedInference.name" class="flex justify-between items-center py-2 border-b border-gray-200">
                     <span class="text-gray-600">Nombre</span>
@@ -391,7 +398,7 @@
                       <span class="text-gray-600">Conteo por Clase:</span>
                       
                       <!-- Loading state -->
-                      <div v-if="!metadataLoaded.has(selectedInference.id)" class="pl-4 flex items-center space-x-2 text-sm text-gray-500">
+                      <div v-if="!isMetadataLoaded(selectedInference.id)" class="pl-4 flex items-center space-x-2 text-sm text-gray-500">
                         <div class="animate-spin text-xs">⚙️</div>
                         <span>Calculando conteos...</span>
                       </div>
@@ -495,9 +502,24 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useMinioMetadata } from '../../composables/use_minio_metadata.js'
 
 const router = useRouter()
 const route = useRoute()
+
+// Minio metadata composable
+const {
+  detectedBoxes,
+  classCountSummary,
+  fetchMetadata,
+  getCachedConfidence,
+  isMetadataLoaded,
+  clearMetadata,
+  getClassLabel,
+  getAllClassLabels,
+  getBoxColor,
+  normalizeCoordinates
+} = useMinioMetadata()
 
 const inferences = ref([])
 const selectedInference = ref(null)
@@ -509,19 +531,22 @@ const currentPage = ref(1)
 // Box controls variables
 const showBoxControls = ref(false)
 const imageLoading = ref(false)
-const detectedBoxes = ref([])
 const selectedBox = ref(null) // Track which box is currently selected/highlighted
-
-// Confidence calculation cache
-const confidenceCache = ref(new Map())
-const metadataLoaded = ref(new Set()) // Track which inferences have loaded metadata
 
 // Computed property to get confidence values efficiently
 const inferencesWithConfidence = computed(() => {
-  return inferences.value.map(inference => ({
-    ...inference,
-    confidence: confidenceCache.value.get(inference.id) || null
-  }))
+  // Use a more stable reference to avoid unnecessary re-renders
+  return inferences.value.map(inference => {
+    const confidence = getCachedConfidence(inference.id) || null
+    // Only add confidence if it's different from what's already there
+    if (inference.confidence === confidence) {
+      return inference
+    }
+    return {
+      ...inference,
+      confidence
+    }
+  })
 })
 
 // Model details cache and toggle state
@@ -572,8 +597,8 @@ onUnmounted(() => {
   // Clear preloaded images set
   preloadedImages.value.clear()
   
-  // Clear metadata loaded tracking
-  metadataLoaded.value.clear()
+  // Clear metadata cache and tracking
+  clearMetadata()
 })
 
 const formatActivityTime = (timestamp) => {
@@ -672,17 +697,34 @@ const loadMoreInferences = async () => {
   await loadInferences(currentPage.value)
 }
 
-const openInferenceDetail = async (inference) => {
-  selectedInference.value = inference
-  // Reset detected boxes - they will be populated from metadata
-  detectedBoxes.value = []
-  // Reset model details toggle state
-  showModelDetails.value = false
-  // Update URL to include inference ID
-  router.replace({ query: { ...route.query, id: inference.id } })
+// Add a loading state for opening inference details
+const openingInference = ref(false)
 
-  // Always fetch metadata when opening inference detail
-  await fetchBoxMetadataFromMinio(inference.id)
+const openInferenceDetail = async (inference) => {
+  // Prevent multiple rapid clicks
+  if (openingInference.value) return
+  
+  openingInference.value = true
+  
+  try {
+    selectedInference.value = inference
+    // Reset model details toggle state
+    showModelDetails.value = false
+    
+    // Always fetch metadata when opening inference detail
+    try {
+      await fetchMetadata(inference.id)
+    } catch (error) {
+      console.error('Error fetching metadata for inference:', inference.id, error)
+    }
+    
+    // Update URL after metadata is loaded to avoid race conditions
+    router.replace({ query: { ...route.query, id: inference.id } })
+  } catch (error) {
+    console.error('Error opening inference detail:', error)
+  } finally {
+    openingInference.value = false
+  }
 }
 
 const closeInferenceDetail = () => {
@@ -726,39 +768,6 @@ const currentResultImage = computed(() => {
   // so we can draw boxes manually on canvas using metadata from Minio
   return selectedInference.value.baseImageUrl
 })
-
-const toggleAllBoxes = (visible) => {
-  detectedBoxes.value.forEach(box => {
-    box.visible = visible
-  })
-  updateImageWithBoxes()
-}
-
-const selectBox = (box) => {
-  selectedBox.value = box
-  
-  // Redraw canvas to show selection highlighting
-  if (showBoxControls.value) {
-    updateImageWithBoxes()
-  }
-}
-
-// Calculate and cache average confidence from metadata
-const calculateAverageConfidence = (inferenceId, detections) => {
-  if (!detections || detections.length === 0) {
-    confidenceCache.value.set(inferenceId, null)
-    return null
-  }
-  
-  // Calculate average confidence from all detections
-  const totalConfidence = detections.reduce((sum, detection) => sum + detection.confidence, 0)
-  const averageConfidence = totalConfidence / detections.length
-  
-  // Cache the result
-  confidenceCache.value.set(inferenceId, averageConfidence)
-  
-  return averageConfidence
-}
 
 // Image caching functions
 const preloadedImages = ref(new Set()) // Track which images have been preloaded
@@ -891,8 +900,8 @@ const toggleBoxControls = async () => {
     
     // If we're entering box control mode and don't have metadata, fetch it
     if (showBoxControls.value) {
-      if (!metadataLoaded.value.has(selectedInference.value.id)) {
-        await fetchBoxMetadataFromMinio(selectedInference.value.id)
+      if (!isMetadataLoaded(selectedInference.value.id)) {
+        await fetchMetadata(selectedInference.value.id)
       }
       
       // Try to setup canvas after metadata is loaded
@@ -914,193 +923,6 @@ const toggleBoxControls = async () => {
   } finally {
     imageLoading.value = false
   }
-}
-
-const fetchBoxMetadataFromMinio = async (inferenceId) => {
-  try {
-    const apiUrl = import.meta.env.VITE_API_BASE_URL
-    const response = await fetch(`${apiUrl}/inferences/getInferenceMetadata/${inferenceId}`, {
-      method: 'GET',
-      credentials: 'include'
-    })
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    
-    const data = await response.json()
-    
-    if (data.success && data.metadata) {
-      // Mark metadata as loaded
-      metadataLoaded.value.add(inferenceId)
-      
-      // Calculate and cache average confidence
-      calculateAverageConfidence(inferenceId, data.metadata.detections)
-      
-      // Only update detectedBoxes if not already populated (prevent double processing)
-      if (detectedBoxes.value.length === 0) {
-        // Get original image dimensions from metadata
-        const imageInfo = data.metadata.image_info
-        const originalImageSize = imageInfo ? imageInfo.original_size : null
-        
-        // Map the detections to detectedBoxes format
-        detectedBoxes.value = data.metadata.detections.map((detection, index) => {
-          let bbox_normalized = null
-          
-          // Calculate normalized coordinates using original image dimensions
-          if (detection.bbox && originalImageSize) {
-            const [originalHeight, originalWidth] = originalImageSize
-            bbox_normalized = normalizeCoordinates(detection.bbox, [originalWidth, originalHeight])
-            
-            // Validate normalization was successful
-            if (!bbox_normalized) {
-              console.error(`Failed to normalize coordinates for box ${index}:`, detection.bbox)
-            }
-          } else {
-            console.warn(`Box ${index} missing bbox or image size:`, {
-              hasBbox: !!detection.bbox,
-              hasImageSize: !!originalImageSize,
-              bbox: detection.bbox,
-              imageSize: originalImageSize,
-              detection: detection
-            })
-          }
-          
-          return {
-            id: index, // Use index as unique ID
-            label: getClassLabel(detection.class_id),
-            confidence: detection.confidence,
-            visible: true, // All boxes visible by default
-            color: getBoxColor(detection.class_id),
-            bbox: detection.bbox, // Original pixel coordinates (for reference)
-            bbox_normalized: bbox_normalized, // Properly normalized coordinates (0-1 range)
-            center_point: detection.center_point,
-            area: detection.area,
-            class_id: detection.class_id
-          }
-        })
-      }
-      
-      // Try to draw boxes if canvas is ready and box controls are active
-      nextTick(() => {
-        if (showBoxControls.value && imageCanvas.value && hiddenImage.value) {
-          setupCanvas()
-          drawImageWithBoxes()
-        }
-      })
-    } else {
-      console.error('Failed to load metadata:', data.error || 'Unknown error')
-      // Mark as loaded even on failure to stop loading state
-      metadataLoaded.value.add(inferenceId)
-    }
-  } catch (error) {
-    console.error('Error fetching metadata from Minio:', error)
-    // Mark as loaded even on error to stop loading state
-    metadataLoaded.value.add(inferenceId)
-  }
-}
-
-/**
- * Normalize bounding box coordinates to 0-1 range for resolution-independent storage
- * 
- * @param {Object|Array} bbox - Bounding box coordinates (either {x1,y1,x2,y2} object or [x1,y1,x2,y2] array)
- * @param {Array} imageSize - [width, height] of the original image in pixels
- * @returns {Object|null} Normalized coordinates {x1,y1,x2,y2} in 0-1 range, or null if invalid
- * 
- * The normalized coordinate system ensures that:
- * - All coordinates are between 0 and 1
- * - x1,y1 represents the top-left corner
- * - x2,y2 represents the bottom-right corner
- * - x1 <= x2 and y1 <= y2 (enforced by this function)
- * - Coordinates can be scaled to any canvas/display size by multiplying by target dimensions
- */
-const normalizeCoordinates = (bbox, imageSize) => {
-  const [imageWidth, imageHeight] = imageSize
-  
-  // Handle both array format [x1, y1, x2, y2] and object format {x1, y1, x2, y2}
-  let x1, y1, x2, y2;
-  
-  if (Array.isArray(bbox)) {
-    [x1, y1, x2, y2] = bbox;
-  } else if (bbox && typeof bbox === 'object') {
-    ({ x1, y1, x2, y2 } = bbox);
-  } else {
-    console.error('Invalid bbox format:', bbox);
-    return null;
-  }
-  
-  // Normalize coordinates to 0-1 range
-  const normalized = {
-    x1: Math.max(0, Math.min(1, x1 / imageWidth)),
-    y1: Math.max(0, Math.min(1, y1 / imageHeight)),
-    x2: Math.max(0, Math.min(1, x2 / imageWidth)),
-    y2: Math.max(0, Math.min(1, y2 / imageHeight))
-  };
-  
-  // Ensure x1 <= x2 and y1 <= y2 for consistent box drawing
-  return {
-    x1: Math.min(normalized.x1, normalized.x2),
-    y1: Math.min(normalized.y1, normalized.y2),
-    x2: Math.max(normalized.x1, normalized.x2),
-    y2: Math.max(normalized.y1, normalized.y2)
-  };
-}
-
-const classCountSummary = computed(() => {
-  if (!detectedBoxes.value || !selectedInference.value || !metadataLoaded.value.has(selectedInference.value.id)) {
-    return null
-  }
-  
-  // Initialize all classes with 0
-  const allClasses = getAllClassLabels()
-  const counts = {}
-  
-  // Initialize all classes with 0
-  Object.values(allClasses).forEach(label => {
-    counts[label] = 0
-  })
-  
-  // Count detected boxes by their actual labels
-  detectedBoxes.value.forEach(box => {
-    const label = box.label || getClassLabel(box.class_id)
-    if (label && counts.hasOwnProperty(label)) {
-      counts[label] += 1
-    }
-  })
-  
-  return counts
-})
-
-const getAllClassLabels = () => {
-  return {
-    2: 'C5 DarkRed',
-    1: 'C4 BrightRed', 
-    4: 'C3 Orange (Red dot)',
-    3: 'C2 Green',
-    0: 'C1 Boton'
-  }
-}
-
-const getClassLabel = (classId) => {
-  const classLabels = {
-    2: 'C5 DarkRed',
-    1: 'C4 BrightRed',
-    4: 'C3 Orange (Red dot)',
-    3: 'C2 Green',
-    0: 'C1 Boton',
-  }
-  return classLabels[classId] || `Clase ${classId}`
-}
-
-const getBoxColor = (classId) => {
-  const classColors = {
-    2: '#991B1B', // C5 DarkRed
-    1: '#EF4444', // C4 BrightRed
-    4: '#F59E0B', // C3 Orange
-    3: '#22C55E', // C2 Green
-    0: '#6B7280', // C1 Boton (gray)
-  }
-  return classColors[classId] || '#6366F1' // Default purple color
 }
 
 const updateImageWithBoxes = () => {
@@ -1387,7 +1209,6 @@ const findBoxAtPosition = (x, y) => {
   return null
 }
 
-
 // Window resize handler to adjust canvas
 const handleResize = () => {
   if (showBoxControls.value && imageCanvas.value) {
@@ -1400,6 +1221,22 @@ const handleResize = () => {
 
 const handleImageError = (event) => {
   event.target.src = '/frambuesas_1.jpg' // Fallback image
+}
+
+const selectBox = (box) => {
+  selectedBox.value = selectedBox.value === box ? null : box
+  
+  // Redraw canvas to show selection highlighting
+  if (showBoxControls.value) {
+    updateImageWithBoxes()
+  }
+}
+
+const toggleAllBoxes = (visible) => {
+  detectedBoxes.value.forEach(box => {
+    box.visible = visible
+  })
+  updateImageWithBoxes()
 }
 </script>
 
