@@ -776,3 +776,19 @@ Traceback (most recent call last):
   File "/usr/local/lib/python3.11/site-packages/werkzeug/exceptions.py", line 861, in __call__
     raise self.mapping[code](*args, **kwargs)
 werkzeug.exceptions.NotFound: 404 Not Found: Metadata not found
+[2025-09-08: 00:07:37] [dataset_sync] > Error accessing MinIO bucket 'dataset': HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /dataset?location= (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7efcba38ba10>: Failed to establish a new connection: [Errno 111] Connection refused')) >> None
+[2025-09-08: 00:07:51] [dataset_sync] > Error accessing MinIO bucket 'dataset': HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /dataset?location= (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7f063fa3fa90>: Failed to establish a new connection: [Errno 111] Connection refused')) >> None
+[2025-09-08: 00:07:58] [dataset_sync] > Error accessing MinIO bucket 'dataset': HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /dataset?location= (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7fba30356650>: Failed to establish a new connection: [Errno 111] Connection refused')) >> None
+[2025-09-08: 00:08:05] [dataset_sync] > Error accessing MinIO bucket 'dataset': HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /dataset?location= (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7f083f1fec50>: Failed to establish a new connection: [Errno 111] Connection refused')) >> None
+[2025-09-08: 00:13:12] [dataset_sync] > Error accessing MinIO bucket 'dataset': HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /dataset?location= (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7fce74d37490>: Failed to establish a new connection: [Errno 111] Connection refused')) >> None
+[2025-09-08: 00:13:20] [dataset_sync] > Error accessing MinIO bucket 'dataset': HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /dataset?location= (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7f0b9a012550>: Failed to establish a new connection: [Errno 111] Connection refused')) >> None
+[2025-09-08: 00:40:26] [inferences] > Error generating inference for 1/288cdb4e4b78455890156c3031bee097/original_img.jpg >> (<class 'requests.exceptions.HTTPError'>, HTTPError('500 Server Error: Internal Server Error for url: http://192.168.100.85:8080//inferencia'), <traceback object at 0x7f54b2e03a80>)
+Traceback (most recent call last):
+  File "/app/src/routes/inferences.py", line 134, in generateInference
+    json_response = nnClient.generateInference(payload)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/src/cloudServices/nnApiConnections.py", line 44, in generateInference
+    response.raise_for_status()
+  File "/usr/local/lib/python3.11/site-packages/requests/models.py", line 1024, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 500 Server Error: Internal Server Error for url: http://192.168.100.85:8080//inferencia
