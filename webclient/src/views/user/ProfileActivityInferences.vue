@@ -278,6 +278,81 @@
                       </label>
                     </div>
                   </div>
+                  
+                  <!-- Magnifying glass controls -->
+                  <div v-if="detectedBoxes.length > 0" class="mt-4 pt-4 border-t border-gray-200">
+                    <div class="flex items-center justify-between mb-3">
+                      <h5 class="text-sm font-medium text-gray-700">Lupa de Precisión</h5>
+                      <button
+                        @click="toggleMagnifyingGlass"
+                        :class="[
+                          'flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-200 text-sm',
+                          magnifyingGlassActive 
+                            ? 'bg-purple-100 text-purple-700 border border-purple-300' 
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        ]"
+                      >
+                        <span>{{ magnifyingGlassActive ? '🔍' : '🔍' }}</span>
+                        <span>{{ magnifyingGlassActive ? 'Desactivar' : 'Activar' }}</span>
+                      </button>
+                    </div>
+                    
+                    <!-- Zoom and size controls when magnifying glass is active -->
+                    <div v-if="magnifyingGlassActive" class="space-y-3">
+                      <!-- Zoom controls -->
+                      <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-600">Zoom:</span>
+                        <div class="flex gap-2">
+                          <button 
+                            @click="magnifyingGlassZoom = Math.max(1.0, magnifyingGlassZoom - 0.1)"
+                            class="px-2 py-1 bg-gray-600 text-white text-xs font-bold rounded hover:bg-gray-700 transition-all duration-300"
+                            :disabled="magnifyingGlassZoom <= 1.0"
+                          >
+                            🔍-
+                          </button>
+                          <span class="px-2 py-1 bg-gray-100 text-gray-800 text-xs font-medium rounded flex items-center min-w-[50px] justify-center">
+                            {{ magnifyingGlassZoom.toFixed(1) }}x
+                          </span>
+                          <button 
+                            @click="magnifyingGlassZoom = Math.min(5.0, magnifyingGlassZoom + 0.1)"
+                            class="px-2 py-1 bg-gray-600 text-white text-xs font-bold rounded hover:bg-gray-700 transition-all duration-300"
+                            :disabled="magnifyingGlassZoom >= 5.0"
+                          >
+                            🔍+
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <!-- Size controls -->
+                      <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-600">Tamaño:</span>
+                        <div class="flex gap-2">
+                          <button 
+                            @click="magnifyingGlassRadius = Math.max(30, magnifyingGlassRadius - 10)"
+                            class="px-2 py-1 bg-indigo-600 text-white text-xs font-bold rounded hover:bg-indigo-700 transition-all duration-300"
+                            :disabled="magnifyingGlassRadius <= 30"
+                          >
+                            ◯-
+                          </button>
+                          <span class="px-2 py-1 bg-gray-100 text-gray-800 text-xs font-medium rounded flex items-center min-w-[50px] justify-center">
+                            {{ Math.round(adaptiveMagnifyingGlassRadius) }}px
+                          </span>
+                          <button 
+                            @click="magnifyingGlassRadius = Math.min(80, magnifyingGlassRadius + 10)"
+                            class="px-2 py-1 bg-indigo-600 text-white text-xs font-bold rounded hover:bg-indigo-700 transition-all duration-300"
+                            :disabled="magnifyingGlassRadius >= 80"
+                          >
+                            ◯+
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <!-- Help text -->
+                      <p class="text-xs text-purple-600 text-center">
+                        Mueve el mouse sobre la imagen para usar la lupa
+                      </p>
+                    </div>
+                  </div>
                 </div>
                 
                 <div class="bg-gray-100 rounded-lg p-4 relative">
@@ -297,9 +372,15 @@
                     <canvas 
                       v-if="selectedInference.generatedImageUrl && showBoxControls"
                       ref="imageCanvas"
-                      class="w-full h-64 rounded-lg transition-all duration-300 border border-gray-200 cursor-pointer bg-gray-50"
+                      class="w-full h-64 rounded-lg transition-all duration-300 border border-gray-200 bg-gray-50"
+                      :class="{ 
+                        'cursor-crosshair': !magnifyingGlassActive, 
+                        'cursor-none': magnifyingGlassActive 
+                      }"
                       @click="handleCanvasClick"
                       @dblclick="handleCanvasDoubleClick"
+                      @mousemove="handleCanvasMouseMove"
+                      @mouseleave="handleCanvasMouseLeave"
                     ></canvas>
                     
                     <!-- Regular image when not in box control mode -->
@@ -345,8 +426,8 @@
                     
                     <!-- Instructions -->
                     <div 
-                      v-if="showBoxControls && detectedBoxes.length > 0"
-                      class="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded shadow-sm"
+                      v-if="showBoxControls && detectedBoxes.length > 0 && !magnifyingGlassActive"
+                      class="absolute top-2 left-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded shadow-sm"
                     >
                       Click: seleccionar • Doble-click: mostrar/ocultar
                     </div>
@@ -532,6 +613,37 @@ const currentPage = ref(1)
 const showBoxControls = ref(false)
 const imageLoading = ref(false)
 const selectedBox = ref(null) // Track which box is currently selected/highlighted
+
+// Magnifying glass controls
+const magnifyingGlassActive = ref(false)
+const magnifyingGlassRadius = ref(50) // Smaller default radius
+const magnifyingGlassPosition = ref({ x: 0, y: 0 })
+const magnifyingGlassZoom = ref(1.0) // Zoom factor
+const magnifyingGlassBoxes = ref([]) // Boxes within magnifying glass area
+
+// Computed magnifying glass radius based on image size and zoom
+const adaptiveMagnifyingGlassRadius = computed(() => {
+  if (!canvasImageBounds.value || !imageCanvas.value) {
+    return magnifyingGlassRadius.value
+  }
+  
+  const bounds = canvasImageBounds.value
+  const canvas = imageCanvas.value
+  
+  // Calculate a base radius that's proportional to the smaller dimension of the displayed image
+  const imageDisplayWidth = bounds.drawWidth
+  const imageDisplayHeight = bounds.drawHeight
+  const smallerDimension = Math.min(imageDisplayWidth, imageDisplayHeight)
+  
+  // Base radius is 8-15% of the smaller dimension, adjusted by user setting
+  const baseRadius = (smallerDimension * 0.12) * (magnifyingGlassRadius.value / 50)
+  
+  // Inverse relationship with zoom - higher zoom = smaller radius for precision
+  const zoomAdjustedRadius = baseRadius * (1.5 / magnifyingGlassZoom.value)
+  
+  // Ensure minimum and maximum bounds
+  return Math.max(25, Math.min(zoomAdjustedRadius, 120))
+})
 
 // Computed property to get confidence values efficiently
 const inferencesWithConfidence = computed(() => {
@@ -1019,19 +1131,28 @@ const drawImageWithBoxes = () => {
     scaleY: drawHeight / img.naturalHeight
   }
   
-  // Draw visible bounding boxes, but save the selected box for last (to render on top)
-  const visibleBoxes = detectedBoxes.value.filter(box => box.visible)
-  const nonSelectedBoxes = visibleBoxes.filter(box => box !== selectedBox.value)
-  const selectedBoxToDrawLast = visibleBoxes.find(box => box === selectedBox.value)
-  
-  // Draw all non-selected boxes first
-  nonSelectedBoxes.forEach((box, index) => {
-    drawBoundingBox(ctx, box)
-  })
-  
-  // Draw selected box last (on top of everything)
-  if (selectedBoxToDrawLast) {
-    drawBoundingBox(ctx, selectedBoxToDrawLast)
+  // Only draw bounding boxes if magnifying glass is not active
+  if (!magnifyingGlassActive.value) {
+    // Draw visible bounding boxes, but save the selected box for last (to render on top)
+    const visibleBoxes = detectedBoxes.value.filter(box => box.visible)
+    const nonSelectedBoxes = visibleBoxes.filter(box => box !== selectedBox.value)
+    const selectedBoxToDrawLast = visibleBoxes.find(box => box === selectedBox.value)
+    
+    // Reset line dash before drawing
+    ctx.setLineDash([])
+    
+    // Draw all non-selected boxes first
+    nonSelectedBoxes.forEach((box, index) => {
+      drawBoundingBox(ctx, box)
+    })
+    
+    // Draw selected box last (on top of everything)
+    if (selectedBoxToDrawLast) {
+      drawBoundingBox(ctx, selectedBoxToDrawLast)
+    }
+  } else {
+    // Draw magnifying glass
+    drawMagnifyingGlass(ctx)
   }
 }
 
@@ -1133,6 +1254,8 @@ const drawBoundingBox = (ctx, box) => {
 const handleCanvasClick = (event) => {
   if (!showBoxControls.value || !canvasContext.value) return
   
+  if (magnifyingGlassActive.value) return // Don't handle clicks when magnifying glass is active
+  
   const canvas = imageCanvas.value
   const rect = canvas.getBoundingClientRect()
   const x = event.clientX - rect.left
@@ -1152,6 +1275,8 @@ const handleCanvasClick = (event) => {
 const handleCanvasDoubleClick = (event) => {
   if (!showBoxControls.value || !canvasContext.value) return
   
+  if (magnifyingGlassActive.value) return // Don't handle double clicks when magnifying glass is active
+  
   const canvas = imageCanvas.value
   const rect = canvas.getBoundingClientRect()
   const x = event.clientX - rect.left
@@ -1164,6 +1289,19 @@ const handleCanvasDoubleClick = (event) => {
     clickedBox.visible = !clickedBox.visible
     // Force reactivity update for the controls list
     detectedBoxes.value = [...detectedBoxes.value]
+    updateImageWithBoxes()
+  }
+}
+
+const handleCanvasMouseMove = (event) => {
+  if (magnifyingGlassActive.value) {
+    updateMagnifyingGlassPosition(event)
+  }
+}
+
+const handleCanvasMouseLeave = () => {
+  if (magnifyingGlassActive.value) {
+    magnifyingGlassBoxes.value = []
     updateImageWithBoxes()
   }
 }
@@ -1238,6 +1376,334 @@ const toggleAllBoxes = (visible) => {
   })
   updateImageWithBoxes()
 }
+
+// Magnifying glass functions
+const toggleMagnifyingGlass = () => {
+  magnifyingGlassActive.value = !magnifyingGlassActive.value
+  if (magnifyingGlassActive.value) {
+    // Set initial position to center of canvas
+    if (imageCanvas.value) {
+      const rect = imageCanvas.value.getBoundingClientRect()
+      magnifyingGlassPosition.value = {
+        x: rect.width / 2,
+        y: rect.height / 2
+      }
+    }
+  }
+  updateImageWithBoxes()
+}
+
+const updateMagnifyingGlassPosition = (event) => {
+  if (!magnifyingGlassActive.value || !imageCanvas.value) return
+  
+  const canvas = imageCanvas.value
+  const rect = canvas.getBoundingClientRect()
+  const x = (event.clientX - rect.left) * (canvas.width / rect.width)
+  const y = (event.clientY - rect.top) * (canvas.height / rect.height)
+  
+  magnifyingGlassPosition.value = { x, y }
+  
+  // Find boxes within magnifying glass area
+  findBoxesInMagnifyingGlass(x, y)
+  
+  updateImageWithBoxes()
+}
+
+const findBoxesInMagnifyingGlass = (centerX, centerY) => {
+  const radius = adaptiveMagnifyingGlassRadius.value
+  const bounds = canvasImageBounds.value
+  
+  if (!bounds) {
+    magnifyingGlassBoxes.value = []
+    return
+  }
+  
+  magnifyingGlassBoxes.value = detectedBoxes.value.filter(box => {
+    if (!box.visible || !box.bbox_normalized) return false
+    
+    const { x1, y1, x2, y2 } = box.bbox_normalized
+    
+    // Convert normalized coordinates to canvas coordinates
+    const canvasX1 = x1 * bounds.drawWidth + bounds.drawX
+    const canvasY1 = y1 * bounds.drawHeight + bounds.drawY
+    const canvasX2 = x2 * bounds.drawWidth + bounds.drawX
+    const canvasY2 = y2 * bounds.drawHeight + bounds.drawY
+    
+    // Calculate box dimensions
+    const boxLeft = Math.min(canvasX1, canvasX2)
+    const boxRight = Math.max(canvasX1, canvasX2)
+    const boxTop = Math.min(canvasY1, canvasY2)
+    const boxBottom = Math.max(canvasY1, canvasY2)
+    const boxWidth = boxRight - boxLeft
+    const boxHeight = boxBottom - boxTop
+    
+    // Add padding to exclude label areas - typically labels are at the top of boxes
+    // Remove label area (approximately 20px or 15% of box height, whichever is smaller)
+    const labelHeight = Math.min(20, boxHeight * 0.15)
+    const paddingX = Math.min(4, boxWidth * 0.05)  // Small horizontal padding
+    const paddingY = Math.min(4, boxHeight * 0.05) // Small vertical padding
+    
+    // Apply padding to create the "visible content area" (what user actually sees in magnifying glass)
+    const contentLeft = boxLeft + paddingX
+    const contentRight = boxRight - paddingX
+    const contentTop = boxTop + labelHeight + paddingY // Exclude label area at top
+    const contentBottom = boxBottom - paddingY
+    
+    // Only consider the content area for intersection calculation
+    if (contentLeft >= contentRight || contentTop >= contentBottom) {
+      // Box is too small after padding, skip it
+      box.intersectionArea = 0
+      return false
+    }
+    
+    // Calculate intersection area with the circle using only the content area
+    const intersectionArea = calculateBoxCircleIntersection(
+      contentLeft, contentTop, contentRight, contentBottom,
+      centerX, centerY, radius
+    )
+    
+    // Store the intersection area for proportional border segments
+    box.intersectionArea = intersectionArea
+    
+    return intersectionArea > 0
+  }).sort((a, b) => b.intersectionArea - a.intersectionArea) // Sort by area, largest first
+}
+
+const calculateBoxCircleIntersection = (boxLeft, boxTop, boxRight, boxBottom, centerX, centerY, radius) => {
+  // Simplified approach: sample points within the box and count how many are inside the circle
+  const sampleSize = 20 // 20x20 grid for reasonable accuracy
+  let pointsInside = 0
+  let totalPoints = 0
+  
+  const stepX = (boxRight - boxLeft) / sampleSize
+  const stepY = (boxBottom - boxTop) / sampleSize
+  
+  for (let i = 0; i < sampleSize; i++) {
+    for (let j = 0; j < sampleSize; j++) {
+      const x = boxLeft + i * stepX + stepX / 2
+      const y = boxTop + j * stepY + stepY / 2
+      
+      const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2))
+      if (distance <= radius) {
+        pointsInside++
+      }
+      totalPoints++
+    }
+  }
+  
+  // Return the proportion of the box that's inside the circle
+  return totalPoints > 0 ? pointsInside / totalPoints : 0
+}
+
+const drawMagnifyingGlass = (ctx) => {
+  if (!magnifyingGlassActive.value || !hiddenImage.value || !canvasImageBounds.value) return
+  
+  const { x, y } = magnifyingGlassPosition.value
+  const radius = adaptiveMagnifyingGlassRadius.value
+  const zoom = magnifyingGlassZoom.value
+  const bounds = canvasImageBounds.value
+  const img = hiddenImage.value
+  
+  // Save current context state
+  ctx.save()
+  
+  // Create circular clipping path
+  ctx.beginPath()
+  ctx.arc(x, y, radius, 0, 2 * Math.PI)
+  ctx.clip()
+  
+  // Clear the clipped area
+  ctx.clearRect(x - radius, y - radius, radius * 2, radius * 2)
+  
+  // Calculate source coordinates on the original image
+  const sourceX = ((x - bounds.drawX) / bounds.drawWidth) * img.naturalWidth
+  const sourceY = ((y - bounds.drawY) / bounds.drawHeight) * img.naturalHeight
+  const sourceSize = (radius * 2) / zoom
+  
+  // Draw zoomed image portion
+  ctx.drawImage(
+    img,
+    sourceX - sourceSize / 2, sourceY - sourceSize / 2, sourceSize, sourceSize,
+    x - radius, y - radius, radius * 2, radius * 2
+  )
+  
+  // Restore context to remove clipping
+  ctx.restore()
+  
+  // Draw magnifying glass border with color coding
+  drawMagnifyingGlassBorder(ctx, x, y, radius)
+  
+  // Draw box information overlay
+  drawMagnifyingGlassOverlay(ctx, x, y, radius)
+}
+
+const drawMagnifyingGlassBorder = (ctx, centerX, centerY, radius) => {
+  const borderWidth = 4
+  
+  ctx.lineWidth = borderWidth
+  
+  if (magnifyingGlassBoxes.value.length === 0) {
+    // Default gray border when no boxes
+    ctx.strokeStyle = '#6B7280'
+    ctx.beginPath()
+    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI)
+    ctx.stroke()
+  } else {
+    // Use the color of the most dominant box (largest intersection area)
+    const dominantBox = magnifyingGlassBoxes.value[0] // Already sorted by area, largest first
+    
+    // Draw main border in dominant box color
+    ctx.strokeStyle = dominantBox.color
+    ctx.beginPath()
+    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI)
+    ctx.stroke()
+    
+    // Draw corner indicators for other boxes (if any)
+    if (magnifyingGlassBoxes.value.length > 1) {
+      const indicatorSize = 8
+      const cornerOffset = 12
+      const corners = [
+        { x: centerX + radius - cornerOffset, y: centerY - radius + cornerOffset }, // Top-right
+        { x: centerX + radius - cornerOffset, y: centerY + radius - cornerOffset }, // Bottom-right
+        { x: centerX - radius + cornerOffset, y: centerY + radius - cornerOffset }, // Bottom-left
+        { x: centerX - radius + cornerOffset, y: centerY - radius + cornerOffset }  // Top-left
+      ]
+      
+      // Show up to 4 additional boxes in corners
+      magnifyingGlassBoxes.value.slice(1, 5).forEach((box, index) => {
+        const corner = corners[index]
+        if (corner) {
+          // Draw small colored square indicator
+          ctx.fillStyle = box.color
+          ctx.fillRect(
+            corner.x - indicatorSize / 2, 
+            corner.y - indicatorSize / 2, 
+            indicatorSize, 
+            indicatorSize
+          )
+          
+          // Add white border to indicator for better visibility
+          ctx.strokeStyle = 'white'
+          ctx.lineWidth = 1
+          ctx.strokeRect(
+            corner.x - indicatorSize / 2, 
+            corner.y - indicatorSize / 2, 
+            indicatorSize, 
+            indicatorSize
+          )
+        }
+      })
+    }
+  }
+  
+  // Add outer highlight
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.arc(centerX, centerY, radius + borderWidth / 2 + 1, 0, 2 * Math.PI)
+  ctx.stroke()
+}
+
+const drawMagnifyingGlassOverlay = (ctx, centerX, centerY, radius) => {
+  if (magnifyingGlassBoxes.value.length === 0) return
+  
+  // Position overlay to the side that has more space
+  const canvas = imageCanvas.value
+  const overlayWidth = 220
+  const overlayHeight = Math.min(magnifyingGlassBoxes.value.length * 30 + 30, 200) // Cap height
+  
+  let overlayX, overlayY
+  
+  // Determine best position for overlay
+  if (centerX + radius + overlayWidth + 10 < canvas.width) {
+    // Right side
+    overlayX = centerX + radius + 10
+    overlayY = centerY - overlayHeight / 2
+  } else if (centerX - radius - overlayWidth - 10 > 0) {
+    // Left side
+    overlayX = centerX - radius - overlayWidth - 10
+    overlayY = centerY - overlayHeight / 2
+  } else if (centerY - radius - overlayHeight - 10 > 0) {
+    // Top
+    overlayX = centerX - overlayWidth / 2
+    overlayY = centerY - radius - overlayHeight - 10
+  } else {
+    // Bottom
+    overlayX = centerX - overlayWidth / 2
+    overlayY = centerY + radius + 10
+  }
+  
+  // Ensure overlay stays within canvas bounds
+  overlayX = Math.max(5, Math.min(overlayX, canvas.width - overlayWidth - 5))
+  overlayY = Math.max(5, Math.min(overlayY, canvas.height - overlayHeight - 5))
+  
+  // Draw overlay background
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.85)'
+  ctx.fillRect(overlayX, overlayY, overlayWidth, overlayHeight)
+  
+  // Draw overlay border
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'
+  ctx.lineWidth = 1
+  ctx.strokeRect(overlayX, overlayY, overlayWidth, overlayHeight)
+  
+  // Draw header
+  ctx.font = 'bold 12px Inter, system-ui, sans-serif'
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'middle'
+  ctx.fillStyle = 'white'
+  ctx.fillText('Objetos detectados:', overlayX + 10, overlayY + 15)
+  
+  // Draw box information
+  ctx.font = '11px Inter, system-ui, sans-serif'
+  
+  magnifyingGlassBoxes.value.slice(0, 6).forEach((box, index) => { // Show max 6 boxes
+    const yPos = overlayY + 35 + index * 25
+    const isDominant = index === 0
+    
+    // Highlight dominant box
+    if (isDominant) {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
+      ctx.fillRect(overlayX + 5, yPos - 10, overlayWidth - 10, 20)
+    }
+    
+    // Color indicator (larger for dominant box)
+    const indicatorSize = isDominant ? 14 : 10
+    ctx.fillStyle = box.color
+    ctx.fillRect(overlayX + 10, yPos - indicatorSize/2, indicatorSize, indicatorSize)
+    
+    // White border for indicator
+    ctx.strokeStyle = 'white'
+    ctx.lineWidth = 1
+    ctx.strokeRect(overlayX + 10, yPos - indicatorSize/2, indicatorSize, indicatorSize)
+    
+    // Text (bold for dominant box)
+    ctx.font = isDominant ? 'bold 11px Inter' : '11px Inter'
+    ctx.fillStyle = isDominant ? '#ffffff' : '#e5e7eb'
+    const text = `${box.label} ${Math.round(box.confidence * 100)}%`
+    const coverage = `(${Math.round(box.intersectionArea * 100)}% visible)`
+    
+    ctx.fillText(text, overlayX + 30, yPos - 5)
+    
+    // Coverage percentage in smaller text
+    ctx.font = '9px Inter'
+    ctx.fillStyle = isDominant ? '#d1d5db' : '#9ca3af'
+    ctx.fillText(coverage, overlayX + 30, yPos + 7)
+    
+    // Crown icon for dominant box
+    if (isDominant) {
+      ctx.fillStyle = '#fbbf24'
+      ctx.font = '12px Arial'
+      ctx.fillText('👑', overlayX + overlayWidth - 25, yPos)
+    }
+  })
+  
+  // Show count if there are more boxes
+  if (magnifyingGlassBoxes.value.length > 6) {
+    ctx.font = '10px Inter'
+    ctx.fillStyle = '#9ca3af'
+    ctx.fillText(`+${magnifyingGlassBoxes.value.length - 6} más...`, overlayX + 10, overlayY + overlayHeight - 10)
+  }
+}
 </script>
 
 <style>
@@ -1290,5 +1756,25 @@ const toggleAllBoxes = (visible) => {
 
 .gallery-item:hover img {
   transform: scale(1.05) !important;
+}
+
+/* Canvas cursor styles */
+canvas {
+  transition: cursor 0.2s ease;
+}
+
+canvas:hover {
+  cursor: pointer;
+}
+
+/* Magnifying glass cursor styles */
+canvas.cursor-none {
+  cursor: none;
+}
+
+/* Enhanced magnifying glass overlay styling */
+.magnifying-overlay {
+  pointer-events: none;
+  font-family: 'Inter', system-ui, sans-serif;
 }
 </style>
