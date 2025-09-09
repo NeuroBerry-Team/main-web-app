@@ -118,13 +118,19 @@ def create_app():
          supports_credentials=True,
          expose_headers=['Content-Type'])
 
-    # Initialize dataset synchronization on startup
+    # Initialize dataset and model synchronization on startup
     with app.app_context():
         try:
             from .services.dataset_sync import sync_datasets_with_minio
             sync_datasets_with_minio()
         except Exception as e:
             print(f"Warning: Failed to sync datasets on startup: {e}")
+        
+        try:
+            from .services.model_sync import sync_models_with_nn_api
+            sync_models_with_nn_api()
+        except Exception as e:
+            print(f"Warning: Failed to sync models on startup: {e}")
 
-    print('Runing apppp')
+    print('Running app')
     return app

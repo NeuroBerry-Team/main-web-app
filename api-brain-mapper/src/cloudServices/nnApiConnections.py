@@ -3,6 +3,7 @@ import requests
 import jwt
 import uuid
 from datetime import datetime, timedelta, timezone
+
 load_dotenv()
 
 
@@ -21,21 +22,17 @@ class NnAPIClient:
         jti = str(uuid.uuid4())
         now = datetime.now(timezone.utc)
 
-        payload = {
-            'jti': jti,
-            'iat': now,
-            'exp': now + timedelta(seconds=30)
-        }
+        payload = {"jti": jti, "iat": now, "exp": now + timedelta(seconds=30)}
 
-        token = jwt.encode(payload, self.secret_key, algorithm='HS256')
+        token = jwt.encode(payload, self.secret_key, algorithm="HS256")
         return token
-    
+
     def generateInference(self, data=None):
         token = self._generateToken()
         url = f"{self.base_url}/inferencia"
         headers = {
-            'Authorization': f'Bearer {token}',
-            'Content-Type': 'application/json'
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
         }
 
         response = requests.post(url, json=data, headers=headers)
@@ -44,7 +41,7 @@ class NnAPIClient:
             response.raise_for_status()
 
         return response.json()
-    
+
     def requestTraining(self, data=None):
         """
         Request training for a new model
@@ -55,8 +52,8 @@ class NnAPIClient:
         token = self._generateToken()
         url = f"{self.base_url}/training"
         headers = {
-            'Authorization': f'Bearer {token}',
-            'Content-Type': 'application/json'
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
         }
 
         response = requests.post(url, json=data, headers=headers)
@@ -65,7 +62,7 @@ class NnAPIClient:
             response.raise_for_status()
 
         return response.json()
-    
+
     def getTrainingJobs(self):
         """
         Get list of all training jobs
@@ -74,8 +71,8 @@ class NnAPIClient:
         token = self._generateToken()
         url = f"{self.base_url}/training"
         headers = {
-            'Authorization': f'Bearer {token}',
-            'Content-Type': 'application/json'
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
         }
 
         response = requests.get(url, headers=headers)
@@ -84,7 +81,7 @@ class NnAPIClient:
             response.raise_for_status()
 
         return response.json()
-    
+
     def cancelTrainingJob(self, job_id):
         """
         Cancel a training job
@@ -94,11 +91,30 @@ class NnAPIClient:
         token = self._generateToken()
         url = f"{self.base_url}/training/{job_id}"
         headers = {
-            'Authorization': f'Bearer {token}',
-            'Content-Type': 'application/json'
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
         }
 
         response = requests.delete(url, headers=headers)
+
+        if response.status_code != 200:
+            response.raise_for_status()
+
+        return response.json()
+
+    def getAvailableModels(self):
+        """
+        Get list of available models for inference
+        :return: List of models
+        """
+        token = self._generateToken()
+        url = f"{self.base_url}/models"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+
+        response = requests.get(url, headers=headers)
 
         if response.status_code != 200:
             response.raise_for_status()

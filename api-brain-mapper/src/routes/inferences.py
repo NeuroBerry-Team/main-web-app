@@ -4,13 +4,13 @@ import datetime
 import requests
 import json
 from dotenv import load_dotenv
-from io import BytesIO
 
 from flask import Blueprint, request, jsonify, abort, g, send_file
 from logs.logger import logger
 
 from ..database.dbConnection import db
 from ..models.inference import Inference
+from ..models.model import Model
 from ..security.decorators_utils import auth_required
 from ..security.input_validation import InputValidator
 from ..security.file_upload_security import FileUploadSecurity
@@ -87,6 +87,16 @@ def generateInference():
         request, ["name", "imgUrl", "imgObjectKey"]
     )
 
+    # Get optional modelId, default to 1 if not provided
+    model_id = req.get("modelId", 1)
+    if not isinstance(model_id, int) or model_id <= 0:
+        abort(400, "Invalid model ID")
+
+    # Validate that the model exists in the database
+    model = Model.query.get(model_id)
+    if not model:
+        abort(404, "Model not found")
+
     if os.getenv("ENV_MODE") != "production":
         logger.debug(f"[INFERENCE DEBUG] Validated request: {req}")
 
@@ -129,8 +139,12 @@ def generateInference():
 
     # Make API call to ANN-API to make the inference
     try:
-        payload = {"imgObjectKey": imgObjectKey}
-        logger.info(f"Generating inference for user {g.uid}: {imgObjectKey}")
+        # Get the name of the model. NN API needs it to switch models.
+        model_name = model.name
+        payload = {"imgObjectKey": imgObjectKey, "modelName": model_name}
+        logger.info(
+            f"Generating inference for user {g.uid}: {imgObjectKey} with model {model_name}"
+        )
         json_response = nnClient.generateInference(payload)
         generatedImageUrl = json_response["generatedImgUrl"]
         # Get the metadata URL from NN API response
@@ -144,8 +158,7 @@ def generateInference():
     # Make new instance of inference model
     new_inference = Inference(
         userId=user_id,
-        # TODO: Should be set on the web app, for now it's the default model 1
-        modelId=1,
+        modelId=model_id,  # Use the selected model ID
         name=name,
         baseImageUrl=baseImageUrl,
         generatedImageUrl=generatedImageUrl,
@@ -162,7 +175,16 @@ def generateInference():
         abort(500, "Error while saving inference")
 
     # Respond with the generatedImageUrl and id
-    return jsonify({"generatedImgUrl": generatedImageUrl, "id": new_inference.id, "baseImageUrl": baseImageUrl}), 200
+    return (
+        jsonify(
+            {
+                "generatedImgUrl": generatedImageUrl,
+                "id": new_inference.id,
+                "baseImageUrl": baseImageUrl,
+            }
+        ),
+        200,
+    )
 
 
 @inferences.route("/getInferenceMetadata/<int:inference_id>", methods=["GET"])

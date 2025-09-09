@@ -27,6 +27,39 @@
       </section>
 
       <section class="flex flex-col items-center gap-4 sm:gap-6">
+        <!-- Model selection -->
+        <div class="w-full max-w-sm sm:max-w-lg lg:max-w-2xl">
+          <label for="model-select" class="block text-sm font-medium text-gray-700 mb-2">
+            Selecciona el modelo de IA:
+          </label>
+          <select 
+            id="model-select"
+            v-model="selectedModel"
+            :disabled="loading || modelsLoading || models.length === 0"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <option value="" disabled>
+              {{ modelsLoading ? 'Cargando modelos...' : models.length === 0 ? 'No hay modelos disponibles' : 'Selecciona un modelo' }}
+            </option>
+            <option 
+              v-for="model in models" 
+              :key="model.id" 
+              :value="model.id"
+            >
+              {{ model.label }}
+            </option>
+          </select>
+          <p v-if="modelsError" class="mt-1 text-xs text-red-600">
+            Error cargando modelos: {{ modelsError }}
+          </p>
+          <p v-else-if="!modelsLoading && models.length === 0" class="mt-1 text-xs text-gray-500">
+            No hay modelos disponibles. Contacta al administrador.
+          </p>
+          <p v-else-if="selectedModel && models.find(m => m.id === selectedModel)" class="mt-1 text-xs text-gray-600">
+            Modelo seleccionado: {{ models.find(m => m.id === selectedModel)?.description || 'Sin descripción' }}
+          </p>
+        </div>
+
         <div class="w-full max-w-sm sm:max-w-lg lg:max-w-2xl border-2 sm:border-4 border-dashed border-red-700 rounded-xl sm:rounded-2xl bg-red-50/20 cursor-pointer flex justify-center items-center transition-all duration-300 hover:border-red-900 hover:bg-red-50/50 hover:scale-105 relative p-8 sm:p-10 lg:p-12" 
              @click="triggerFileInput" 
              :class="{ 
@@ -59,7 +92,7 @@
         <div v-if="previewImage" class="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full max-w-md">
           <button 
             class="flex-1 px-4 py-2 sm:px-6 sm:py-3 bg-green-600 text-white text-sm sm:text-base font-bold rounded-lg hover:bg-green-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed" 
-            :disabled="loading" 
+            :disabled="loading || !selectedModel" 
             @click="startInference"
           >
             {{ loading ? 'Analizando...' : 'Iniciar análisis' }}
@@ -73,10 +106,11 @@
       </section>
       
       <!-- Error message -->
-      <section v-if="error" class="bg-red-50 border-2 border-red-300 rounded-lg sm:rounded-xl p-4 sm:p-6 lg:p-8 text-center flex flex-col gap-4 sm:gap-6 lg:gap-8">
+      <section v-if="error || modelsError" class="bg-red-50 border-2 border-red-300 rounded-lg sm:rounded-xl p-4 sm:p-6 lg:p-8 text-center flex flex-col gap-4 sm:gap-6 lg:gap-8">
         <h2 class="text-lg sm:text-xl lg:text-2xl font-bold text-red-800">Error:</h2>
-        <p class="text-red-700 font-medium text-sm sm:text-base mb-2 sm:mb-4 px-2">{{ error }}</p>
-        <button v-if="error.includes('login')" 
+        <p v-if="error" class="text-red-700 font-medium text-sm sm:text-base mb-2 sm:mb-4 px-2">{{ error }}</p>
+        <p v-if="modelsError" class="text-red-700 font-medium text-sm sm:text-base mb-2 sm:mb-4 px-2">Error de modelos: {{ modelsError }}</p>
+        <button v-if="error?.includes('login') || modelsError?.includes('Authentication')" 
                 @click="$router.push('/login')" 
                 class="inline-block px-4 py-2 sm:px-6 sm:py-3 bg-red-700 text-white text-sm sm:text-base font-bold rounded-lg hover:bg-red-800 transition-all duration-300">
           Ir al Login
@@ -362,6 +396,7 @@ import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useAuth } from '../../composables/use_auth.js'
 import { useInference } from '../../composables/send_inference.js'
 import { useMinioMetadata } from '../../composables/use_minio_metadata.js'
+import { useModels } from '../../composables/use_models.js'
 
 // Authentication
 const { isLoggedIn, user, loading: authLoading, checkAuthStatus } = useAuth()
@@ -384,6 +419,15 @@ const {
   getCachedConfidence,
   getBoxColor
 } = useMinioMetadata()
+
+// Model selection
+const { 
+  loading: modelsLoading, 
+  error: modelsError, 
+  models, 
+  fetchModels 
+} = useModels()
+const selectedModel = ref(null)
 
 // Box controls
 const showBoxControls = ref(false)
@@ -449,8 +493,26 @@ watch(result, async (newResult) => {
 }, { immediate: true })
 
 // Check auth status on mount
-onMounted(() => {
+onMounted(async () => {
   checkAuthStatus()
+  // Fetch models when component mounts if user is logged in
+  if (isLoggedIn.value) {
+    await fetchModels()
+    // Set default model selection to first available model
+    if (models.value.length > 0) {
+      selectedModel.value = models.value[0].id
+    }
+  }
+})
+
+// Watch for login status changes to fetch models
+watch(isLoggedIn, async (newValue) => {
+  if (newValue) {
+    await fetchModels()
+    if (models.value.length > 0) {
+      selectedModel.value = models.value[0].id
+    }
+  }
 })
 
 function triggerFileInput() {
@@ -487,12 +549,18 @@ async function startInference() {
     return
   }
 
-  await handleInference(selectedFile.value)
+  if (!selectedModel.value) {
+    alert('Por favor selecciona un modelo primero')
+    return
+  }
+
+  await handleInference(selectedFile.value, selectedModel.value)
 }
 
 function startNewAnalysis() {
   resetImage()
   result.value = null
+  error.value = ''  // Clear previous errors
   showBoxControls.value = false
   selectedBox.value = null
 }

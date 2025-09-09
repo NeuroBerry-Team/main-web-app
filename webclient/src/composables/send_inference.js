@@ -8,7 +8,7 @@ export function useInference() {
   const result = ref(null);
   const debug = ref('');
 
-  async function handleInference(selectedFile) {
+  async function handleInference(selectedFile, modelId = 1) {
     loading.value = true;
     error.value = '';
     result.value = null;
@@ -58,7 +58,8 @@ export function useInference() {
       const payload = {
         name: selectedFile.name,
         imgUrl: liveURL,
-        imgObjectKey: imgObjectKey
+        imgObjectKey: imgObjectKey,
+        modelId: modelId
       };
       debug.value += `\nSending payload to backend: ${JSON.stringify(payload, null, 2)}`;
 
