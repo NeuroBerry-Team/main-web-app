@@ -372,7 +372,7 @@
                     <canvas 
                       v-if="selectedInference.generatedImageUrl && showBoxControls"
                       ref="imageCanvas"
-                      class="w-full h-64 rounded-lg transition-all duration-300 border border-gray-200 bg-gray-50"
+                      class="w-full max-h-[600px] mx-auto rounded-lg border border-gray-200 bg-gray-50 object-contain"
                       :class="{ 
                         'cursor-crosshair': !magnifyingGlassActive, 
                         'cursor-none': magnifyingGlassActive 
@@ -388,7 +388,7 @@
                       v-else-if="selectedInference.generatedImageUrl"
                       :src="currentResultImage"
                       :alt="'Análisis: ' + selectedInference.result"
-                      class="w-full h-64 object-contain rounded-lg transition-all duration-300 bg-gray-50"
+                      class="w-full max-h-[600px] mx-auto rounded-lg object-contain bg-gray-50"
                       @error="handleImageError"
                     />
                     
@@ -1069,24 +1069,59 @@ const setupCanvas = () => {
   const img = hiddenImage.value
   const ctx = canvas.getContext('2d')
   canvasContext.value = ctx
+
+  // Get the actual display size from the parent container
+  const containerRect = canvas.parentElement.getBoundingClientRect()
+  const containerWidth = containerRect.width
   
-  // Set canvas size to match the display size
-  const containerWidth = canvas.parentElement.clientWidth
-  const containerHeight = 256 // h-64 class = 256px
+  // Calculate the actual display size based on max-h-[600px] and object-contain
+  const maxHeight = 600
+  const imageAspectRatio = img.naturalWidth / img.naturalHeight
   
-  canvas.width = containerWidth
-  canvas.height = containerHeight
+  let displayWidth, displayHeight
   
-  // Configure canvas context
+  // Calculate actual display dimensions using object-contain logic
+  if (containerWidth / maxHeight > imageAspectRatio) {
+    // Height is the limiting factor
+    displayHeight = Math.min(maxHeight, img.naturalHeight)
+    displayWidth = displayHeight * imageAspectRatio
+  } else {
+    // Width is the limiting factor
+    displayWidth = containerWidth
+    displayHeight = displayWidth / imageAspectRatio
+    if (displayHeight > maxHeight) {
+      displayHeight = maxHeight
+      displayWidth = displayHeight * imageAspectRatio
+    }
+  }
+  
+  // Set canvas size to match the actual displayed image size
+  canvas.width = displayWidth
+  canvas.height = displayHeight
+  canvas.style.width = `${displayWidth}px`
+  canvas.style.height = `${displayHeight}px`
+
+  // Configure canvas context for better rendering
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
+
+  // Store bounds for use in drawing and hit-testing (canvas fills exactly the image area)
+  canvasImageBounds.value = {
+    drawX: 0,
+    drawY: 0,
+    drawWidth: displayWidth,
+    drawHeight: displayHeight,
+    scaleX: displayWidth / img.naturalWidth,
+    scaleY: displayHeight / img.naturalHeight
+  }
 }
 
 const drawImageWithBoxes = () => {
-  if (!canvasContext.value || !hiddenImage.value) {
-    console.warn('Cannot draw: missing context or image', {
+  if (!canvasContext.value || !hiddenImage.value || !canvasImageBounds.value) {
+    console.warn('Cannot draw: missing context, image, or bounds', {
       context: !!canvasContext.value,
-      image: !!hiddenImage.value
+      image: !!hiddenImage.value,
+      bounds: !!canvasImageBounds.value
     })
     return
   }
@@ -1094,61 +1129,36 @@ const drawImageWithBoxes = () => {
   const ctx = canvasContext.value
   const canvas = imageCanvas.value
   const img = hiddenImage.value
+  const bounds = canvasImageBounds.value
   
   // Clear canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height)
   
-  // Calculate dimensions to match object-contain behavior (show full image, maintain aspect ratio)
-  const canvasAspectRatio = canvas.width / canvas.height
-  const imageAspectRatio = img.naturalWidth / img.naturalHeight
-  
-  let drawWidth, drawHeight, drawX, drawY
-  
-  if (imageAspectRatio > canvasAspectRatio) {
-    // Image is wider than canvas - fit to width, letterbox top/bottom
-    drawWidth = canvas.width
-    drawHeight = drawWidth / imageAspectRatio
-    drawX = 0
-    drawY = (canvas.height - drawHeight) / 2
-  } else {
-    // Image is taller than canvas - fit to height, letterbox sides
-    drawHeight = canvas.height
-    drawWidth = drawHeight * imageAspectRatio
-    drawX = (canvas.width - drawWidth) / 2
-    drawY = 0
-  }
-  
-  // Draw the image with object-contain behavior
-  ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight)
-  
-  // Store the image bounds for coordinate conversion in drawBoundingBox
-  canvasImageBounds.value = { 
-    drawX, 
-    drawY, 
-    drawWidth, 
-    drawHeight,
-    scaleX: drawWidth / img.naturalWidth,
-    scaleY: drawHeight / img.naturalHeight
-  }
-  
+  // Draw the image to fill the entire canvas (since canvas size matches display size)
+  ctx.drawImage(img, bounds.drawX, bounds.drawY, bounds.drawWidth, bounds.drawHeight)
+
   // Only draw bounding boxes if magnifying glass is not active
   if (!magnifyingGlassActive.value) {
-    // Draw visible bounding boxes, but save the selected box for last (to render on top)
-    const visibleBoxes = detectedBoxes.value.filter(box => box.visible)
-    const nonSelectedBoxes = visibleBoxes.filter(box => box !== selectedBox.value)
-    const selectedBoxToDrawLast = visibleBoxes.find(box => box === selectedBox.value)
+    // Get visible boxes with normalized coordinates
+    const visibleBoxes = detectedBoxes.value.filter(box => box.visible && box.bbox_normalized)
     
-    // Reset line dash before drawing
-    ctx.setLineDash([])
-    
-    // Draw all non-selected boxes first
-    nonSelectedBoxes.forEach((box, index) => {
-      drawBoundingBox(ctx, box)
-    })
-    
-    // Draw selected box last (on top of everything)
-    if (selectedBoxToDrawLast) {
-      drawBoundingBox(ctx, selectedBoxToDrawLast)
+    if (visibleBoxes.length > 0) {
+      // Draw non-selected boxes first, then selected box on top
+      const nonSelectedBoxes = visibleBoxes.filter(box => box !== selectedBox.value)
+      const selectedBoxToDrawLast = visibleBoxes.find(box => box === selectedBox.value)
+      
+      // Reset line dash before drawing
+      ctx.setLineDash([])
+      
+      // Draw non-selected boxes
+      nonSelectedBoxes.forEach((box) => {
+        drawBoundingBox(ctx, box)
+      })
+      
+      // Draw selected box on top
+      if (selectedBoxToDrawLast) {
+        drawBoundingBox(ctx, selectedBoxToDrawLast)
+      }
     }
   } else {
     // Draw magnifying glass
@@ -1410,7 +1420,6 @@ const updateMagnifyingGlassPosition = (event) => {
 }
 
 const findBoxesInMagnifyingGlass = (centerX, centerY) => {
-  const radius = adaptiveMagnifyingGlassRadius.value
   const bounds = canvasImageBounds.value
   
   if (!bounds) {
@@ -1418,81 +1427,108 @@ const findBoxesInMagnifyingGlass = (centerX, centerY) => {
     return
   }
   
-  magnifyingGlassBoxes.value = detectedBoxes.value.filter(box => {
-    if (!box.visible || !box.bbox_normalized) return false
-    
-    const { x1, y1, x2, y2 } = box.bbox_normalized
-    
-    // Convert normalized coordinates to canvas coordinates
-    const canvasX1 = x1 * bounds.drawWidth + bounds.drawX
-    const canvasY1 = y1 * bounds.drawHeight + bounds.drawY
-    const canvasX2 = x2 * bounds.drawWidth + bounds.drawX
-    const canvasY2 = y2 * bounds.drawHeight + bounds.drawY
-    
-    // Calculate box dimensions
-    const boxLeft = Math.min(canvasX1, canvasX2)
-    const boxRight = Math.max(canvasX1, canvasX2)
-    const boxTop = Math.min(canvasY1, canvasY2)
-    const boxBottom = Math.max(canvasY1, canvasY2)
-    const boxWidth = boxRight - boxLeft
-    const boxHeight = boxBottom - boxTop
-    
-    // Add padding to exclude label areas - typically labels are at the top of boxes
-    // Remove label area (approximately 20px or 15% of box height, whichever is smaller)
-    const labelHeight = Math.min(20, boxHeight * 0.15)
-    const paddingX = Math.min(4, boxWidth * 0.05)  // Small horizontal padding
-    const paddingY = Math.min(4, boxHeight * 0.05) // Small vertical padding
-    
-    // Apply padding to create the "visible content area" (what user actually sees in magnifying glass)
-    const contentLeft = boxLeft + paddingX
-    const contentRight = boxRight - paddingX
-    const contentTop = boxTop + labelHeight + paddingY // Exclude label area at top
-    const contentBottom = boxBottom - paddingY
-    
-    // Only consider the content area for intersection calculation
-    if (contentLeft >= contentRight || contentTop >= contentBottom) {
-      // Box is too small after padding, skip it
-      box.intersectionArea = 0
-      return false
-    }
-    
-    // Calculate intersection area with the circle using only the content area
-    const intersectionArea = calculateBoxCircleIntersection(
-      contentLeft, contentTop, contentRight, contentBottom,
-      centerX, centerY, radius
-    )
-    
-    // Store the intersection area for proportional border segments
-    box.intersectionArea = intersectionArea
-    
-    return intersectionArea > 0
-  }).sort((a, b) => b.intersectionArea - a.intersectionArea) // Sort by area, largest first
-}
 
-const calculateBoxCircleIntersection = (boxLeft, boxTop, boxRight, boxBottom, centerX, centerY, radius) => {
-  // Simplified approach: sample points within the box and count how many are inside the circle
-  const sampleSize = 20 // 20x20 grid for reasonable accuracy
-  let pointsInside = 0
-  let totalPoints = 0
-  
-  const stepX = (boxRight - boxLeft) / sampleSize
-  const stepY = (boxBottom - boxTop) / sampleSize
-  
-  for (let i = 0; i < sampleSize; i++) {
-    for (let j = 0; j < sampleSize; j++) {
-      const x = boxLeft + i * stepX + stepX / 2
-      const y = boxTop + j * stepY + stepY / 2
+  const boxDistances = detectedBoxes.value
+    .filter(box => box.visible && box.bbox_normalized)
+    .map(box => {
+      const { x1, y1, x2, y2 } = box.bbox_normalized
       
-      const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2))
-      if (distance <= radius) {
-        pointsInside++
+      // Convert normalized coordinates to canvas coordinates
+      const canvasX1 = x1 * bounds.drawWidth + bounds.drawX
+      const canvasY1 = y1 * bounds.drawHeight + bounds.drawY
+      const canvasX2 = x2 * bounds.drawWidth + bounds.drawX
+      const canvasY2 = y2 * bounds.drawHeight + bounds.drawY
+      
+      // Calculate box center and bounds
+      const boxCenterX = (canvasX1 + canvasX2) / 2
+      const boxCenterY = (canvasY1 + canvasY2) / 2
+      const boxLeft = Math.min(canvasX1, canvasX2)
+      const boxRight = Math.max(canvasX1, canvasX2)
+      const boxTop = Math.min(canvasY1, canvasY2)
+      const boxBottom = Math.max(canvasY1, canvasY2)
+      
+      // Calculate distance from crosshair to box center
+      const distanceToCenter = Math.sqrt(
+        Math.pow(centerX - boxCenterX, 2) + Math.pow(centerY - boxCenterY, 2)
+      )
+      
+      // Check if crosshair is inside the box
+      const isInside = centerX >= boxLeft && centerX <= boxRight && 
+                      centerY >= boxTop && centerY <= boxBottom
+      
+      // Calculate distance from crosshair to nearest box edge if outside
+      let distanceToBox = distanceToCenter
+      if (!isInside) {
+        const distanceToLeft = Math.abs(centerX - boxLeft)
+        const distanceToRight = Math.abs(centerX - boxRight)
+        const distanceToTop = Math.abs(centerY - boxTop)
+        const distanceToBottom = Math.abs(centerY - boxBottom)
+        
+        if (centerX < boxLeft) {
+          if (centerY < boxTop) {
+            // Top-left corner
+            distanceToBox = Math.sqrt(Math.pow(centerX - boxLeft, 2) + Math.pow(centerY - boxTop, 2))
+          } else if (centerY > boxBottom) {
+            // Bottom-left corner
+            distanceToBox = Math.sqrt(Math.pow(centerX - boxLeft, 2) + Math.pow(centerY - boxBottom, 2))
+          } else {
+            // Left edge
+            distanceToBox = distanceToLeft
+          }
+        } else if (centerX > boxRight) {
+          if (centerY < boxTop) {
+            // Top-right corner
+            distanceToBox = Math.sqrt(Math.pow(centerX - boxRight, 2) + Math.pow(centerY - boxTop, 2))
+          } else if (centerY > boxBottom) {
+            // Bottom-right corner
+            distanceToBox = Math.sqrt(Math.pow(centerX - boxRight, 2) + Math.pow(centerY - boxBottom, 2))
+          } else {
+            // Right edge
+            distanceToBox = distanceToRight
+          }
+        } else {
+          // Above or below
+          distanceToBox = centerY < boxTop ? distanceToTop : distanceToBottom
+        }
+      } else {
+        // Inside the box - use negative distance for priority
+        distanceToBox = -Math.min(
+          Math.min(centerX - boxLeft, boxRight - centerX),
+          Math.min(centerY - boxTop, boxBottom - centerY)
+        )
       }
-      totalPoints++
-    }
-  }
+      
+      return {
+        ...box,
+        distanceToCenter,
+        distanceToBox,
+        isInside
+      }
+    })
+    .sort((a, b) => {
+      // Prioritize boxes containing the crosshair, then by distance
+      if (a.isInside && !b.isInside) return -1
+      if (!a.isInside && b.isInside) return 1
+      
+      // For boxes both inside or both outside, sort by distance
+      return a.distanceToBox - b.distanceToBox
+    })
   
-  // Return the proportion of the box that's inside the circle
-  return totalPoints > 0 ? pointsInside / totalPoints : 0
+  // Take the closest boxes (up to 5) within a reasonable range
+  const maxDistance = 150 // Maximum distance to consider a box "relevant"
+  magnifyingGlassBoxes.value = boxDistances
+    .filter(box => box.isInside || box.distanceToBox <= maxDistance)
+    .slice(0, 5) // Limit to 5 boxes for performance
+    .map(box => {
+      // Set intersection area for compatibility with existing code
+      // Higher values for closer boxes or boxes containing the crosshair
+      if (box.isInside) {
+        box.intersectionArea = 1.0 - (box.distanceToCenter / 1000) // High priority for inside boxes
+      } else {
+        box.intersectionArea = Math.max(0, 1.0 - (box.distanceToBox / maxDistance))
+      }
+      return box
+    })
 }
 
 const drawMagnifyingGlass = (ctx) => {
@@ -1532,6 +1568,9 @@ const drawMagnifyingGlass = (ctx) => {
   
   // Draw magnifying glass border with color coding
   drawMagnifyingGlassBorder(ctx, x, y, radius)
+  
+  // Draw directional guidance
+  drawMagnifyingGlassGuidance(ctx, x, y, radius)
   
   // Draw box information overlay
   drawMagnifyingGlassOverlay(ctx, x, y, radius)
@@ -1602,6 +1641,285 @@ const drawMagnifyingGlassBorder = (ctx, centerX, centerY, radius) => {
   ctx.beginPath()
   ctx.arc(centerX, centerY, radius + borderWidth / 2 + 1, 0, 2 * Math.PI)
   ctx.stroke()
+}
+
+const drawMagnifyingGlassGuidance = (ctx, centerX, centerY, radius) => {
+  const crosshairSize = Math.min(12, radius * 0.2)
+  
+  // Check if we have a dominant box to guide towards
+  const dominantBox = magnifyingGlassBoxes.value.length > 0 ? magnifyingGlassBoxes.value[0] : null
+  
+  if (dominantBox && dominantBox.bbox_normalized && canvasImageBounds.value) {
+    const bounds = canvasImageBounds.value
+    const { x1, y1, x2, y2 } = dominantBox.bbox_normalized
+    
+    // Calculate box center in canvas coordinates
+    const boxCenterX = ((x1 + x2) / 2) * bounds.drawWidth + bounds.drawX
+    const boxCenterY = ((y1 + y2) / 2) * bounds.drawHeight + bounds.drawY
+    
+    // Use the distance data we already calculated
+    const distanceToBoxCenter = dominantBox.distanceToCenter || 0
+    const isInsideBox = dominantBox.isInside || false
+    
+    // Be more strict about when to show special states
+    // Only show "near center" when actually close to center (within 8px)
+    const isNearBoxCenter = distanceToBoxCenter < 8
+    // Only show "inside box" indicators when BOTH inside the box AND close to center
+    const showInsideBoxState = isInsideBox && isNearBoxCenter
+    
+    // Always show arrow - it provides useful distance information
+    const shouldShowArrow = true
+    
+    if (shouldShowArrow) {
+      // Calculate direction to box center
+      const deltaX = boxCenterX - centerX
+      const deltaY = boxCenterY - centerY
+      
+      // Draw directional arrow pointing to box center
+      const angle = Math.atan2(deltaY, deltaX)
+      const arrowDistance = radius * 0.6 // Position arrow inside the magnifying glass
+      const arrowX = centerX + Math.cos(angle) * arrowDistance
+      const arrowY = centerY + Math.sin(angle) * arrowDistance
+      
+      // Use different arrow style when inside the box vs outside
+      // Use box color with better contrast instead of gold
+      let arrowBgColor
+      if (isInsideBox) {
+        arrowBgColor = dominantBox.color
+      } else {
+        arrowBgColor = 'rgba(0, 0, 0, 0.8)'
+      }
+      
+      // Draw arrow background (semi-transparent circle) - make it bigger when inside box
+      const bgRadius = isInsideBox ? 10 : 8
+      ctx.fillStyle = arrowBgColor
+      ctx.beginPath()
+      ctx.arc(arrowX, arrowY, bgRadius, 0, 2 * Math.PI)
+      ctx.fill()
+      
+      // Draw arrow pointing to box center
+      const arrowSize = isInsideBox ? 7 : 6 // Slightly bigger when inside
+      ctx.fillStyle = isInsideBox ? 'white' : dominantBox.color // Inverted colors for better contrast
+      ctx.strokeStyle = isInsideBox ? 'rgba(0, 0, 0, 0.5)' : 'white' 
+      ctx.lineWidth = 2
+      
+      ctx.beginPath()
+      ctx.moveTo(
+        arrowX + Math.cos(angle) * arrowSize,
+        arrowY + Math.sin(angle) * arrowSize
+      )
+      ctx.lineTo(
+        arrowX + Math.cos(angle + 2.5) * arrowSize * 0.6,
+        arrowY + Math.sin(angle + 2.5) * arrowSize * 0.6
+      )
+      ctx.lineTo(
+        arrowX + Math.cos(angle - 2.5) * arrowSize * 0.6,
+        arrowY + Math.sin(angle - 2.5) * arrowSize * 0.6
+      )
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+      
+      // Draw distance indicator text with consistent styling
+      const distance = Math.round(distanceToBoxCenter)
+      ctx.font = 'bold 10px Inter'
+      ctx.fillStyle = 'white'
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)'
+      ctx.lineWidth = 2
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      
+      // Position text near the arrow
+      const textX = arrowX + Math.cos(angle + Math.PI/2) * 15
+      const textY = arrowY + Math.sin(angle + Math.PI/2) * 15
+      
+      // Add subtle prefix when inside box to clarify
+      const displayText = isInsideBox ? `→ ${distance}px` : `${distance}px`
+      
+      ctx.strokeText(displayText, textX, textY)
+      ctx.fillText(displayText, textX, textY)
+    }
+    
+    // Draw enhanced crosshair based on strict conditions
+    if (showInsideBoxState) {
+      // Special "inside box and near center" crosshair - this is the target state
+      drawBullseyeCrosshair(ctx, centerX, centerY, crosshairSize, dominantBox.color, true)
+    } else if (isNearBoxCenter) {
+      // Just near center but not inside box - regular bullseye
+      drawBullseyeCrosshair(ctx, centerX, centerY, crosshairSize, dominantBox.color, false)
+    } else {
+      // Standard crosshair with direction hint
+      const deltaX = boxCenterX - centerX
+      const deltaY = boxCenterY - centerY
+      drawStandardCrosshair(ctx, centerX, centerY, crosshairSize, dominantBox.color, deltaX, deltaY)
+    }
+  } else {
+    // No dominant box - draw standard neutral crosshair
+    drawStandardCrosshair(ctx, centerX, centerY, crosshairSize, '#6B7280', 0, 0)
+  }
+}
+
+const drawBullseyeCrosshair = (ctx, centerX, centerY, size, boxColor, isInsideBox = false) => {
+  if (isInsideBox) {
+    // DRAMATICALLY DIFFERENT: Solid filled circle with crosshair overlay - "TARGET ACQUIRED"
+    
+    // Large filled circle background
+    ctx.fillStyle = `${boxColor}E0` // Semi-transparent
+    ctx.beginPath()
+    ctx.arc(centerX, centerY, size * 0.8, 0, 2 * Math.PI)
+    ctx.fill()
+    
+    // Solid border
+    ctx.strokeStyle = boxColor
+    ctx.lineWidth = 3
+    ctx.beginPath()
+    ctx.arc(centerX, centerY, size * 0.8, 0, 2 * Math.PI)
+    ctx.stroke()
+    
+    // White crosshair overlay (thick and bold)
+    const crossSize = size * 0.6
+    ctx.strokeStyle = 'white'
+    ctx.lineWidth = 4
+    ctx.setLineDash([])
+    
+    // Horizontal line
+    ctx.beginPath()
+    ctx.moveTo(centerX - crossSize, centerY)
+    ctx.lineTo(centerX + crossSize, centerY)
+    ctx.stroke()
+    
+    // Vertical line
+    ctx.beginPath()
+    ctx.moveTo(centerX, centerY - crossSize)
+    ctx.lineTo(centerX, centerY + crossSize)
+    ctx.stroke()
+    
+    // Add black outline to crosshair
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)'
+    ctx.lineWidth = 6
+    
+    // Horizontal line outline
+    ctx.beginPath()
+    ctx.moveTo(centerX - crossSize, centerY)
+    ctx.lineTo(centerX + crossSize, centerY)
+    ctx.stroke()
+    
+    // Vertical line outline
+    ctx.beginPath()
+    ctx.moveTo(centerX, centerY - crossSize)
+    ctx.lineTo(centerX, centerY + crossSize)
+    ctx.stroke()
+    
+    // Redraw white crosshair on top
+    ctx.strokeStyle = 'white'
+    ctx.lineWidth = 4
+    
+    // Horizontal line
+    ctx.beginPath()
+    ctx.moveTo(centerX - crossSize, centerY)
+    ctx.lineTo(centerX + crossSize, centerY)
+    ctx.stroke()
+    
+    // Vertical line
+    ctx.beginPath()
+    ctx.moveTo(centerX, centerY - crossSize)
+    ctx.lineTo(centerX, centerY + crossSize)
+    ctx.stroke()
+    
+    // Success indicator text
+    ctx.font = 'bold 8px Inter'
+    ctx.fillStyle = 'white'
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)'
+    ctx.lineWidth = 2
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.strokeText('TARGET', centerX, centerY + size + 8)
+    ctx.fillText('TARGET', centerX, centerY + size + 8)
+    
+  } else {
+    // COMPLETELY DIFFERENT: Traditional concentric rings - "APPROACHING TARGET"
+    
+    // Multiple thin rings (classic bullseye)
+    const rings = [
+      { radius: size * 0.8, color: boxColor, width: 2 },
+      { radius: size * 0.6, color: 'rgba(255, 255, 255, 0.9)', width: 2 },
+      { radius: size * 0.4, color: boxColor, width: 2 },
+      { radius: size * 0.2, color: 'rgba(255, 255, 255, 0.9)', width: 2 }
+    ]
+    
+    rings.forEach(ring => {
+      ctx.strokeStyle = ring.color
+      ctx.lineWidth = ring.width
+      ctx.setLineDash([])
+      ctx.beginPath()
+      ctx.arc(centerX, centerY, ring.radius, 0, 2 * Math.PI)
+      ctx.stroke()
+    })
+    
+    // Small center dot
+    ctx.fillStyle = boxColor
+    ctx.beginPath()
+    ctx.arc(centerX, centerY, 2, 0, 2 * Math.PI)
+    ctx.fill()
+    
+    // Approaching indicator text
+    ctx.font = 'bold 7px Inter'
+    ctx.fillStyle = boxColor
+    ctx.strokeStyle = 'white'
+    ctx.lineWidth = 2
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.strokeText('CLOSE', centerX, centerY + size + 8)
+    ctx.fillText('CLOSE', centerX, centerY + size + 8)
+  }
+}
+
+const drawStandardCrosshair = (ctx, centerX, centerY, size, color, deltaX, deltaY) => {
+  // Standard crosshair with optional directional bias
+  const hasDirection = deltaX !== 0 || deltaY !== 0
+  
+  // Make crosshair slightly biased toward the target direction
+  const biasStrength = hasDirection ? Math.min(size * 0.3, 4) : 0
+  const angle = hasDirection ? Math.atan2(deltaY, deltaX) : 0
+  
+  const offsetX = Math.cos(angle) * biasStrength
+  const offsetY = Math.sin(angle) * biasStrength
+  
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)'
+  ctx.lineWidth = 2.5
+  ctx.setLineDash([])
+  
+  // Vertical line with bias
+  ctx.beginPath()
+  ctx.moveTo(centerX + offsetX, centerY - size + offsetY)
+  ctx.lineTo(centerX + offsetX, centerY + size + offsetY)
+  ctx.stroke()
+  
+  // Horizontal line with bias
+  ctx.beginPath()
+  ctx.moveTo(centerX - size + offsetX, centerY + offsetY)
+  ctx.lineTo(centerX + size + offsetX, centerY + offsetY)
+  ctx.stroke()
+  
+  // White crosshair on top
+  ctx.strokeStyle = hasDirection ? color : 'rgba(255, 255, 255, 0.8)'
+  ctx.lineWidth = 1.5
+  ctx.setLineDash([3, 2])
+  
+  // Vertical line
+  ctx.beginPath()
+  ctx.moveTo(centerX + offsetX, centerY - size + offsetY)
+  ctx.lineTo(centerX + offsetX, centerY + size + offsetY)
+  ctx.stroke()
+  
+  // Horizontal line
+  ctx.beginPath()
+  ctx.moveTo(centerX - size + offsetX, centerY + offsetY)
+  ctx.lineTo(centerX + size + offsetX, centerY + offsetY)
+  ctx.stroke()
+  
+  // Reset line dash
+  ctx.setLineDash([])
 }
 
 const drawMagnifyingGlassOverlay = (ctx, centerX, centerY, radius) => {

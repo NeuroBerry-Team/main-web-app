@@ -118,215 +118,240 @@
       </section>
       
       <!-- Results section -->
-      <section v-if="result" class="bg-gradient-to-br from-green-50 to-emerald-100 border-2 border-green-300 rounded-lg sm:rounded-xl lg:rounded-2xl p-4 sm:p-6 lg:p-8 text-center flex flex-col gap-4 sm:gap-6 lg:gap-8 shadow-xl">
-        <h2 class="text-lg sm:text-xl lg:text-2xl font-bold text-green-800">Resultado del Análisis</h2>
+      <section v-if="result" class="bg-gradient-to-br from-green-50 to-emerald-100 border-2 border-green-300 rounded-lg sm:rounded-xl lg:rounded-2xl p-6 lg:p-8 text-center flex flex-col gap-6 shadow-xl">
+        <h2 class="text-xl lg:text-2xl font-bold text-green-800">Resultado del Análisis</h2>
         
-        <!-- Image and controls container -->
-        <div class="flex flex-col gap-4 sm:gap-6">
-          <!-- Image display with loading state -->
-          <div class="relative">
-            <div v-if="metadataLoading" class="absolute inset-0 bg-white/80 rounded-lg flex items-center justify-center z-10">
-              <div class="flex flex-col items-center gap-2">
-                <div class="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin"></div>
-                <p class="text-sm text-green-700 font-medium">Cargando análisis...</p>
-              </div>
-            </div>
-            
-            <!-- Display the appropriate image based on box control mode -->
-            <div style="position: relative; width: 100%; min-height: 256px; display: flex; align-items: center; justify-content: center;">
-              <!-- Hidden image for canvas drawing - always loaded -->
-              <img 
-                v-if="currentResultImage"
-                :src="currentResultImage" 
-                alt="Hidden image for canvas"
-                ref="hiddenImage"
-                @load="onImageLoad"
-                @error="handleImageError"
-                style="display: none;"
-              />
-              
-              <!-- Show backend result image (with boxes) when not in box control mode -->
-              <img 
-                v-if="currentResultImage && !showBoxControls" 
-                :src="currentResultImage" 
-                alt="Resultado del análisis" 
-                class="max-w-full max-h-64 sm:max-h-80 lg:max-h-96 mx-auto rounded-lg shadow-lg object-contain"
-                style="display: block; width: 100%; height: 256px; object-fit: contain;"
-              />
-              <!-- Show canvas (image + boxes) in box control mode -->
-              <canvas 
-                v-if="showBoxControls && currentResultImage"
-                ref="imageCanvas"
-                class="max-w-full h-64 sm:h-80 lg:h-96 mx-auto rounded-lg shadow-lg border border-green-300"
-                :class="{ 
-                  'cursor-crosshair': !magnifyingGlassActive, 
-                  'cursor-none': magnifyingGlassActive 
-                }"
-                style="display: block; width: 100%; height: 256px;"
-                @click="handleCanvasClick"
-                @dblclick="handleCanvasDoubleClick"
-                @mousemove="handleCanvasMouseMove"
-                @mouseleave="handleCanvasMouseLeave"
-              ></canvas>
+        <!-- Main image container - much larger and eye-friendly -->
+        <div class="relative bg-white rounded-xl shadow-lg p-4">
+          <!-- Loading overlay -->
+          <div v-if="metadataLoading" class="absolute inset-0 bg-white/90 rounded-xl flex items-center justify-center z-20">
+            <div class="flex flex-col items-center gap-3">
+              <div class="w-10 h-10 border-4 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+              <p class="text-sm text-green-700 font-medium">Cargando análisis...</p>
             </div>
           </div>
-
-          <!-- Control buttons -->
-          <div class="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full max-w-md mx-auto">
+          
+          <!-- Main control buttons - sticky note style in top-right corner -->
+          <div class="absolute top-4 right-4 z-10 flex flex-col gap-2">
             <button 
               @click="toggleBoxControls"
               :disabled="metadataLoading || !detectedBoxes.length"
-              class="flex-1 px-4 py-2 sm:px-6 sm:py-3 bg-blue-600 text-white text-sm sm:text-base font-bold rounded-lg hover:bg-blue-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              class="px-3 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1 shadow-lg"
+              title="Alternar controles de cajas"
             >
-              <span v-if="!showBoxControls">🔍 Controles de Cajas</span>
-              <span v-else>👁️ Ver Resultado</span>
+              <span v-if="!showBoxControls">🔍</span>
+              <span v-else>👁️</span>
+              <span class="hidden sm:inline">{{ showBoxControls ? 'Ver' : 'Cajas' }}</span>
             </button>
             <button 
               @click="startNewAnalysis"
-              class="flex-1 px-4 py-2 sm:px-6 sm:py-3 bg-green-600 text-white text-sm sm:text-base font-bold rounded-lg hover:bg-green-700 transition-all duration-300 flex items-center justify-center gap-2"
+              class="px-3 py-2 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-all duration-300 flex items-center justify-center gap-1 shadow-lg"
+              title="Nuevo análisis"
             >
-              🔄 Nuevo Análisis
+              🔄
+              <span class="hidden sm:inline">Nuevo</span>
             </button>
           </div>
-
-          <!-- Magnifying glass controls (show when box controls are active) -->
-          <div v-if="showBoxControls && detectedBoxes.length > 0" class="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full max-w-md mx-auto">
-            <button 
-              @click="toggleMagnifyingGlass"
-              :class="[
-                'flex-1 px-4 py-2 sm:px-6 sm:py-3 text-white text-sm sm:text-base font-bold rounded-lg transition-all duration-300 flex items-center justify-center gap-2',
-                magnifyingGlassActive 
-                  ? 'bg-purple-600 hover:bg-purple-700' 
-                  : 'bg-indigo-600 hover:bg-indigo-700'
-              ]"
-            >
-              <span v-if="!magnifyingGlassActive">🔍 Lupa</span>
-              <span v-else>🔍 Salir de Lupa</span>
-            </button>
-            
-            <!-- Zoom controls when magnifying glass is active -->
-            <div v-if="magnifyingGlassActive" class="flex gap-2">
+          
+          <!-- Collapsible control panel - top left overlay -->
+          <div v-if="showBoxControls && detectedBoxes.length > 0" class="absolute top-4 left-4 z-10">
+            <div class="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 transition-all duration-300"
+                 :class="controlPanelExpanded ? 'w-80' : 'w-12'">
+              
+              <!-- Panel toggle button -->
               <button 
-                @click="magnifyingGlassZoom = Math.max(1.0, magnifyingGlassZoom - 0.1)"
-                class="px-3 py-2 bg-gray-600 text-white text-sm font-bold rounded-lg hover:bg-gray-700 transition-all duration-300"
-                :disabled="magnifyingGlassZoom <= 1.0"
+                @click="controlPanelExpanded = !controlPanelExpanded"
+                class="w-full p-3 flex items-center justify-center hover:bg-gray-50 rounded-lg transition-colors"
+                title="Alternar panel de controles"
               >
-                🔍-
+                <svg class="w-5 h-5 text-gray-600 transition-transform duration-300" 
+                     :class="{ 'rotate-180': controlPanelExpanded }"
+                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                        d="M9 5l7 7-7 7"></path>
+                </svg>
               </button>
-              <span class="px-3 py-2 bg-gray-100 text-gray-800 text-sm font-medium rounded-lg flex items-center">
-                {{ magnifyingGlassZoom.toFixed(1) }}x
-              </span>
-              <button 
-                @click="magnifyingGlassZoom = Math.min(5.0, magnifyingGlassZoom + 0.1)"
-                class="px-3 py-2 bg-gray-600 text-white text-sm font-bold rounded-lg hover:bg-gray-700 transition-all duration-300"
-                :disabled="magnifyingGlassZoom >= 5.0"
-              >
-                🔍+
-              </button>
-            </div>
-          </div>
-
-          <!-- Size controls when magnifying glass is active -->
-          <div v-if="showBoxControls && magnifyingGlassActive" class="flex gap-2 w-full max-w-md mx-auto">
-            <span class="px-3 py-2 bg-gray-100 text-gray-800 text-xs font-medium rounded-lg flex items-center">
-              Tamaño:
-            </span>
-            <button 
-              @click="magnifyingGlassRadius = Math.max(30, magnifyingGlassRadius - 10)"
-              class="px-3 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 transition-all duration-300"
-              :disabled="magnifyingGlassRadius <= 30"
-            >
-              ◯-
-            </button>
-            <span class="px-3 py-2 bg-gray-100 text-gray-800 text-sm font-medium rounded-lg flex items-center min-w-[60px] justify-center">
-              {{ Math.round(adaptiveMagnifyingGlassRadius) }}px
-            </span>
-            <button 
-              @click="magnifyingGlassRadius = Math.min(80, magnifyingGlassRadius + 10)"
-              class="px-3 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 transition-all duration-300"
-              :disabled="magnifyingGlassRadius >= 80"
-            >
-              ◯+
-            </button>
-          </div>
-
-          <!-- Help text for magnifying glass -->
-          <p v-if="showBoxControls && magnifyingGlassActive" class="text-xs text-purple-600 text-center font-medium">
-            Mueve el mouse sobre la imagen para usar la lupa. La información de las cajas se muestra en el borde y overlay.
-          </p>
-
-          <!-- Box controls panel (visible when box controls are active) -->
-          <div v-if="showBoxControls && detectedBoxes.length > 0" class="bg-white/90 rounded-lg p-4 border border-green-200 shadow-inner">
-            <div class="flex flex-col gap-4">
-              <!-- Box visibility controls -->
-              <div class="flex flex-col sm:flex-row gap-2 sm:gap-4">
-                <h3 class="text-base font-semibold text-gray-800 sm:self-center">Control de Cajas:</h3>
-                <div class="flex gap-2">
+              
+              <!-- Panel content -->
+              <div v-if="controlPanelExpanded" class="p-4 border-t border-gray-100">
+                <!-- Quick actions -->
+                <div class="flex gap-2 mb-4">
                   <button 
                     @click="toggleAllBoxes(true)"
-                    class="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+                    class="flex-1 px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
                   >
-                    Mostrar Todas
+                    ✓ Todas
                   </button>
                   <button 
                     @click="toggleAllBoxes(false)"
-                    class="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                    class="flex-1 px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
                   >
-                    Ocultar Todas
+                    ✗ Ninguna
                   </button>
                 </div>
-              </div>
-
-              <!-- Individual box controls -->
-              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-48 overflow-y-auto">
-                <div 
-                  v-for="box in detectedBoxes" 
-                  :key="box.id"
-                  class="flex items-center justify-between p-2 rounded border text-xs"
-                  :class="{
-                    'bg-blue-50 border-blue-300': selectedBox === box,
-                    'bg-gray-50 border-gray-200': selectedBox !== box
-                  }"
-                >
-                  <div class="flex items-center gap-2 flex-1 min-w-0">
-                    <div 
-                      class="w-3 h-3 rounded-sm border border-gray-400 flex-shrink-0"
-                      :style="{ backgroundColor: box.color }"
-                    ></div>
-                    <span class="font-medium truncate" :style="{ color: box.color }">
-                      {{ box.label }}
-                    </span>
-                    <span class="text-gray-600 flex-shrink-0">
-                      {{ Math.round(box.confidence * 100) }}%
-                    </span>
-                  </div>
-                  <button 
+                
+                <!-- Box list -->
+                <div class="space-y-2 max-h-60 overflow-y-auto">
+                  <div 
+                    v-for="box in detectedBoxes" 
+                    :key="box.id"
+                    class="flex items-center gap-2 p-2 rounded border text-xs hover:bg-gray-50 transition-colors"
+                    :class="{
+                      'bg-blue-50 border-blue-300': selectedBox === box,
+                      'bg-white border-gray-200': selectedBox !== box
+                    }"
                     @click="selectBox(box)"
-                    :class="[
-                      'ml-2 px-2 py-1 text-xs rounded transition-colors flex-shrink-0',
-                      selectedBox === box 
-                        ? 'bg-blue-500 text-white hover:bg-blue-600' 
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    ]"
                   >
-                    {{ selectedBox === box ? 'Deseleccionar' : 'Seleccionar' }}
-                  </button>
-                  <label class="flex items-center ml-2 flex-shrink-0">
                     <input 
                       type="checkbox" 
                       v-model="box.visible"
                       @change="updateImageWithBoxes"
+                      @click.stop
                       class="w-3 h-3"
                     />
-                  </label>
+                    <div 
+                      class="w-3 h-3 rounded-sm border border-gray-400 flex-shrink-0"
+                      :style="{ backgroundColor: box.color }"
+                    ></div>
+                    <div class="flex-1 min-w-0">
+                      <div class="font-medium truncate" :style="{ color: box.color }">
+                        {{ box.label }}
+                      </div>
+                      <div class="text-gray-500 text-xs">
+                        {{ Math.round(box.confidence * 100) }}% confianza
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Help text -->
+                <p class="text-xs text-gray-500 text-center mt-3 pt-3 border-t border-gray-100">
+                  Clic = seleccionar, Checkbox = mostrar/ocultar
+                </p>
+                
+                <!-- Magnifying glass controls -->
+                <div class="mt-4 pt-3 border-t border-gray-100">
+                  <div class="flex justify-center mb-3">
+                    <button 
+                      @click="toggleMagnifyingGlass"
+                      :class="[
+                        'px-4 py-2 text-white text-xs font-bold rounded-lg transition-all duration-300 flex items-center justify-center gap-1',
+                        magnifyingGlassActive 
+                          ? 'bg-purple-600 hover:bg-purple-700' 
+                          : 'bg-indigo-600 hover:bg-indigo-700'
+                      ]"
+                    >
+                      🔍 {{ magnifyingGlassActive ? 'Desactivar' : 'Activar' }}
+                    </button>
+                  </div>
+                  
+                  <!-- Magnifying glass settings -->
+                  <div v-if="magnifyingGlassActive" class="space-y-3">
+                    <!-- Zoom controls -->
+                    <div class="flex items-center justify-between">
+                      <span class="text-xs font-medium text-gray-700">Zoom:</span>
+                      <div class="flex items-center gap-1">
+                        <button 
+                          @click="magnifyingGlassZoom = Math.max(1.0, magnifyingGlassZoom - 0.2)"
+                          class="px-2 py-1 bg-gray-600 text-white text-xs font-bold rounded hover:bg-gray-700 transition-all duration-300"
+                          :disabled="magnifyingGlassZoom <= 1.0"
+                          title="Reducir zoom"
+                        >
+                          -
+                        </button>
+                        <span class="px-2 py-1 bg-gray-100 text-gray-800 text-xs font-medium rounded min-w-[45px] text-center">
+                          {{ magnifyingGlassZoom.toFixed(1) }}x
+                        </span>
+                        <button 
+                          @click="magnifyingGlassZoom = Math.min(6.0, magnifyingGlassZoom + 0.2)"
+                          class="px-2 py-1 bg-gray-600 text-white text-xs font-bold rounded hover:bg-gray-700 transition-all duration-300"
+                          :disabled="magnifyingGlassZoom >= 6.0"
+                          title="Aumentar zoom"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <!-- Size controls -->
+                    <div class="flex items-center justify-between">
+                      <span class="text-xs font-medium text-gray-700">Tamaño:</span>
+                      <div class="flex items-center gap-1">
+                        <button 
+                          @click="magnifyingGlassRadius = Math.max(35, magnifyingGlassRadius - 5)"
+                          class="px-2 py-1 bg-indigo-600 text-white text-xs font-bold rounded hover:bg-indigo-700 transition-all duration-300"
+                          :disabled="magnifyingGlassRadius <= 35"
+                          title="Reducir tamaño"
+                        >
+                          -
+                        </button>
+                        <span class="px-2 py-1 bg-gray-100 text-gray-800 text-xs font-medium rounded min-w-[45px] text-center">
+                          {{ Math.round(adaptiveMagnifyingGlassRadius) }}
+                        </span>
+                        <button 
+                          @click="magnifyingGlassRadius = Math.min(100, magnifyingGlassRadius + 5)"
+                          class="px-2 py-1 bg-indigo-600 text-white text-xs font-bold rounded hover:bg-indigo-700 transition-all duration-300"
+                          :disabled="magnifyingGlassRadius >= 100"
+                          title="Aumentar tamaño"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <!-- Help text -->
+                    <div class="text-xs text-purple-600 text-center space-y-1 mt-2">
+                      <p>🎯 Borde = color del objeto más cercano</p>
+                      <p class="text-xs text-gray-500">
+                        💡 Flecha con fondo = dentro del objeto
+                      </p>
+                      <p class="text-xs text-gray-500">
+                        <kbd class="px-1 py-0.5 bg-gray-200 rounded text-xs">+/-</kbd> zoom, 
+                        <kbd class="px-1 py-0.5 bg-gray-200 rounded text-xs">[/]</kbd> tamaño, 
+                        <kbd class="px-1 py-0.5 bg-gray-200 rounded text-xs">ESC</kbd> salir
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
-              
-              <!-- Help text -->
-              <p class="text-xs text-gray-600 text-center">
-                Haz clic en una caja para seleccionarla, doble clic para mostrar/ocultar
-              </p>
             </div>
+          </div>
+          
+          <!-- Main image display area - much larger -->
+          <div class="relative w-full" style="min-height: 400px;">
+            <!-- Hidden image for canvas drawing -->
+            <img 
+              v-if="currentResultImage"
+              :src="currentResultImage" 
+              alt="Hidden image for canvas"
+              ref="hiddenImage"
+              @load="onImageLoad"
+              @error="handleImageError"
+              style="display: none;"
+            />
+            
+            <!-- Show backend result image (with boxes) when not in box control mode -->
+            <img 
+              v-if="currentResultImage && !showBoxControls" 
+              :src="currentResultImage" 
+              alt="Resultado del análisis" 
+              class="w-full max-h-[600px] mx-auto rounded-lg object-contain"
+            />
+            
+            <!-- Show canvas (image + boxes) in box control mode -->
+            <canvas 
+              v-if="showBoxControls && currentResultImage"
+              ref="imageCanvas"
+              class="w-full max-h-[600px] mx-auto rounded-lg border border-green-300"
+              :class="{ 
+                'cursor-crosshair': !magnifyingGlassActive, 
+                'cursor-none': magnifyingGlassActive 
+              }"
+              @click="handleCanvasClick"
+              @dblclick="handleCanvasDoubleClick"
+              @mousemove="handleCanvasMouseMove"
+              @mouseleave="handleCanvasMouseLeave"
+            ></canvas>
           </div>
         </div>
 
@@ -392,7 +417,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useAuth } from '../../composables/use_auth.js'
 import { useInference } from '../../composables/send_inference.js'
 import { useMinioMetadata } from '../../composables/use_minio_metadata.js'
@@ -432,6 +457,7 @@ const selectedModel = ref(null)
 // Box controls
 const showBoxControls = ref(false)
 const selectedBox = ref(null)
+const controlPanelExpanded = ref(false)
 const imageCanvas = ref(null)
 const hiddenImage = ref(null)
 const canvasContext = ref(null)
@@ -442,7 +468,7 @@ const magnifyingGlassActive = ref(false)
 const magnifyingGlassRadius = ref(50) // Smaller default radius
 const magnifyingGlassPosition = ref({ x: 0, y: 0 })
 const magnifyingGlassZoom = ref(1.0) // Zoom factor
-const magnifyingGlassBoxes = ref([]) // Boxes within magnifying glass area
+const magnifyingGlassBoxes = ref([]) // Boxes closest to magnifying glass crosshair
 
 // Computed properties
 const currentResultImage = computed(() => {
@@ -479,10 +505,11 @@ const adaptiveMagnifyingGlassRadius = computed(() => {
   const baseRadius = (smallerDimension * 0.12) * (magnifyingGlassRadius.value / 50)
   
   // Inverse relationship with zoom - higher zoom = smaller radius for precision
-  const zoomAdjustedRadius = baseRadius * (1.5 / magnifyingGlassZoom.value)
+  // More gentle scaling for better UX at high zooms
+  const zoomAdjustedRadius = baseRadius * (1.8 / (magnifyingGlassZoom.value + 0.5))
   
-  // Ensure minimum and maximum bounds
-  return Math.max(25, Math.min(zoomAdjustedRadius, 120))
+  // Ensure minimum and maximum bounds with better scaling
+  return Math.max(30, Math.min(zoomAdjustedRadius, 150))
 })
 
 // Watch for result changes to fetch metadata
@@ -503,7 +530,47 @@ onMounted(async () => {
       selectedModel.value = models.value[0].id
     }
   }
+  
+  // Add keyboard event listeners for magnifying glass controls
+  window.addEventListener('keydown', handleKeyDown)
 })
+
+onUnmounted(() => {
+  // Clean up keyboard event listeners
+  window.removeEventListener('keydown', handleKeyDown)
+})
+
+// Keyboard shortcuts for magnifying glass controls
+const handleKeyDown = (event) => {
+  // Only handle keys when magnifying glass is active and showing box controls
+  if (!magnifyingGlassActive.value || !showBoxControls.value) return
+  
+  // Prevent default behavior for handled keys
+  const handledKeys = ['Equal', 'Minus', 'BracketLeft', 'BracketRight', 'Escape']
+  if (handledKeys.includes(event.code)) {
+    event.preventDefault()
+  }
+  
+  switch (event.code) {
+    case 'Equal': // Plus key (for zoom in)
+    case 'NumpadAdd':
+      magnifyingGlassZoom.value = Math.min(6.0, magnifyingGlassZoom.value + 0.2)
+      break
+    case 'Minus': // Minus key (for zoom out)
+    case 'NumpadSubtract':
+      magnifyingGlassZoom.value = Math.max(1.0, magnifyingGlassZoom.value - 0.2)
+      break
+    case 'BracketLeft': // [ key (decrease size)
+      magnifyingGlassRadius.value = Math.max(35, magnifyingGlassRadius.value - 5)
+      break
+    case 'BracketRight': // ] key (increase size)
+      magnifyingGlassRadius.value = Math.min(100, magnifyingGlassRadius.value + 5)
+      break
+    case 'Escape': // ESC key (exit magnifying glass)
+      toggleMagnifyingGlass()
+      break
+  }
+}
 
 // Watch for login status changes to fetch models
 watch(isLoggedIn, async (newValue) => {
@@ -597,7 +664,6 @@ const updateMagnifyingGlassPosition = (event) => {
 }
 
 const findBoxesInMagnifyingGlass = (centerX, centerY) => {
-  const radius = adaptiveMagnifyingGlassRadius.value
   const bounds = canvasImageBounds.value
   
   if (!bounds) {
@@ -605,81 +671,108 @@ const findBoxesInMagnifyingGlass = (centerX, centerY) => {
     return
   }
   
-  magnifyingGlassBoxes.value = detectedBoxes.value.filter(box => {
-    if (!box.visible || !box.bbox_normalized) return false
-    
-    const { x1, y1, x2, y2 } = box.bbox_normalized
-    
-    // Convert normalized coordinates to canvas coordinates
-    const canvasX1 = x1 * bounds.drawWidth + bounds.drawX
-    const canvasY1 = y1 * bounds.drawHeight + bounds.drawY
-    const canvasX2 = x2 * bounds.drawWidth + bounds.drawX
-    const canvasY2 = y2 * bounds.drawHeight + bounds.drawY
-    
-    // Calculate box dimensions
-    const boxLeft = Math.min(canvasX1, canvasX2)
-    const boxRight = Math.max(canvasX1, canvasX2)
-    const boxTop = Math.min(canvasY1, canvasY2)
-    const boxBottom = Math.max(canvasY1, canvasY2)
-    const boxWidth = boxRight - boxLeft
-    const boxHeight = boxBottom - boxTop
-    
-    // Add padding to exclude label areas - typically labels are at the top of boxes
-    // Remove label area (approximately 20px or 15% of box height, whichever is smaller)
-    const labelHeight = Math.min(20, boxHeight * 0.15)
-    const paddingX = Math.min(4, boxWidth * 0.05)  // Small horizontal padding
-    const paddingY = Math.min(4, boxHeight * 0.05) // Small vertical padding
-    
-    // Apply padding to create the "visible content area" (what user actually sees in magnifying glass)
-    const contentLeft = boxLeft + paddingX
-    const contentRight = boxRight - paddingX
-    const contentTop = boxTop + labelHeight + paddingY // Exclude label area at top
-    const contentBottom = boxBottom - paddingY
-    
-    // Only consider the content area for intersection calculation
-    if (contentLeft >= contentRight || contentTop >= contentBottom) {
-      // Box is too small after padding, skip it
-      box.intersectionArea = 0
-      return false
-    }
-    
-    // Calculate intersection area with the circle using only the content area
-    const intersectionArea = calculateBoxCircleIntersection(
-      contentLeft, contentTop, contentRight, contentBottom,
-      centerX, centerY, radius
-    )
-    
-    // Store the intersection area for proportional border segments
-    box.intersectionArea = intersectionArea
-    
-    return intersectionArea > 0
-  }).sort((a, b) => b.intersectionArea - a.intersectionArea) // Sort by area, largest first
-}
 
-const calculateBoxCircleIntersection = (boxLeft, boxTop, boxRight, boxBottom, centerX, centerY, radius) => {
-  // Simplified approach: sample points within the box and count how many are inside the circle
-  const sampleSize = 20 // 20x20 grid for reasonable accuracy
-  let pointsInside = 0
-  let totalPoints = 0
-  
-  const stepX = (boxRight - boxLeft) / sampleSize
-  const stepY = (boxBottom - boxTop) / sampleSize
-  
-  for (let i = 0; i < sampleSize; i++) {
-    for (let j = 0; j < sampleSize; j++) {
-      const x = boxLeft + i * stepX + stepX / 2
-      const y = boxTop + j * stepY + stepY / 2
+  const boxDistances = detectedBoxes.value
+    .filter(box => box.visible && box.bbox_normalized)
+    .map(box => {
+      const { x1, y1, x2, y2 } = box.bbox_normalized
       
-      const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2))
-      if (distance <= radius) {
-        pointsInside++
+      // Convert normalized coordinates to canvas coordinates
+      const canvasX1 = x1 * bounds.drawWidth + bounds.drawX
+      const canvasY1 = y1 * bounds.drawHeight + bounds.drawY
+      const canvasX2 = x2 * bounds.drawWidth + bounds.drawX
+      const canvasY2 = y2 * bounds.drawHeight + bounds.drawY
+      
+      // Calculate box center and bounds
+      const boxCenterX = (canvasX1 + canvasX2) / 2
+      const boxCenterY = (canvasY1 + canvasY2) / 2
+      const boxLeft = Math.min(canvasX1, canvasX2)
+      const boxRight = Math.max(canvasX1, canvasX2)
+      const boxTop = Math.min(canvasY1, canvasY2)
+      const boxBottom = Math.max(canvasY1, canvasY2)
+      
+      // Calculate distance from crosshair to box center
+      const distanceToCenter = Math.sqrt(
+        Math.pow(centerX - boxCenterX, 2) + Math.pow(centerY - boxCenterY, 2)
+      )
+      
+      // Check if crosshair is inside the box
+      const isInside = centerX >= boxLeft && centerX <= boxRight && 
+                      centerY >= boxTop && centerY <= boxBottom
+      
+      // Calculate distance from crosshair to nearest box edge if outside
+      let distanceToBox = distanceToCenter
+      if (!isInside) {
+        const distanceToLeft = Math.abs(centerX - boxLeft)
+        const distanceToRight = Math.abs(centerX - boxRight)
+        const distanceToTop = Math.abs(centerY - boxTop)
+        const distanceToBottom = Math.abs(centerY - boxBottom)
+        
+        if (centerX < boxLeft) {
+          if (centerY < boxTop) {
+            // Top-left corner
+            distanceToBox = Math.sqrt(Math.pow(centerX - boxLeft, 2) + Math.pow(centerY - boxTop, 2))
+          } else if (centerY > boxBottom) {
+            // Bottom-left corner
+            distanceToBox = Math.sqrt(Math.pow(centerX - boxLeft, 2) + Math.pow(centerY - boxBottom, 2))
+          } else {
+            // Left edge
+            distanceToBox = distanceToLeft
+          }
+        } else if (centerX > boxRight) {
+          if (centerY < boxTop) {
+            // Top-right corner
+            distanceToBox = Math.sqrt(Math.pow(centerX - boxRight, 2) + Math.pow(centerY - boxTop, 2))
+          } else if (centerY > boxBottom) {
+            // Bottom-right corner
+            distanceToBox = Math.sqrt(Math.pow(centerX - boxRight, 2) + Math.pow(centerY - boxBottom, 2))
+          } else {
+            // Right edge
+            distanceToBox = distanceToRight
+          }
+        } else {
+          // Above or below
+          distanceToBox = centerY < boxTop ? distanceToTop : distanceToBottom
+        }
+      } else {
+        // Inside the box - use negative distance for priority
+        distanceToBox = -Math.min(
+          Math.min(centerX - boxLeft, boxRight - centerX),
+          Math.min(centerY - boxTop, boxBottom - centerY)
+        )
       }
-      totalPoints++
-    }
-  }
+      
+      return {
+        ...box,
+        distanceToCenter,
+        distanceToBox,
+        isInside
+      }
+    })
+    .sort((a, b) => {
+      // Prioritize boxes containing the crosshair, then by distance
+      if (a.isInside && !b.isInside) return -1
+      if (!a.isInside && b.isInside) return 1
+      
+      // For boxes both inside or both outside, sort by distance
+      return a.distanceToBox - b.distanceToBox
+    })
   
-  // Return the proportion of the box that's inside the circle
-  return totalPoints > 0 ? pointsInside / totalPoints : 0
+  // Take the closest boxes (up to 5) within a reasonable range
+  const maxDistance = 150 // Maximum distance to consider a box "relevant"
+  magnifyingGlassBoxes.value = boxDistances
+    .filter(box => box.isInside || box.distanceToBox <= maxDistance)
+    .slice(0, 5) // Limit to 5 boxes for performance
+    .map(box => {
+      // Set intersection area for compatibility with existing code
+      // Higher values for closer boxes or boxes containing the crosshair
+      if (box.isInside) {
+        box.intersectionArea = 1.0 - (box.distanceToCenter / 1000) // High priority for inside boxes
+      } else {
+        box.intersectionArea = Math.max(0, 1.0 - (box.distanceToBox / maxDistance))
+      }
+      return box
+    })
 }
 
 const toggleBoxControls = async () => {
@@ -750,40 +843,51 @@ const setupCanvas = () => {
   const ctx = canvas.getContext('2d')
   canvasContext.value = ctx
 
-  // Get the actual container dimensions
+  // Get the actual display size from the parent container
   const containerRect = canvas.parentElement.getBoundingClientRect()
   const containerWidth = containerRect.width
-  const containerHeight = 256 // h-64 class = 256px
   
-  // Set canvas size to match the display size
-  canvas.width = containerWidth
-  canvas.height = containerHeight
-  canvas.style.width = `${containerWidth}px`
-  canvas.style.height = `${containerHeight}px`
+  // Calculate the actual display size based on max-h-[600px] and object-contain
+  const maxHeight = 600
+  const imageAspectRatio = img.naturalWidth / img.naturalHeight
+  
+  let displayWidth, displayHeight
+  
+  // Calculate actual display dimensions using object-contain logic
+  if (containerWidth / maxHeight > imageAspectRatio) {
+    // Height is the limiting factor
+    displayHeight = Math.min(maxHeight, img.naturalHeight)
+    displayWidth = displayHeight * imageAspectRatio
+  } else {
+    // Width is the limiting factor
+    displayWidth = containerWidth
+    displayHeight = displayWidth / imageAspectRatio
+    if (displayHeight > maxHeight) {
+      displayHeight = maxHeight
+      displayWidth = displayHeight * imageAspectRatio
+    }
+  }
+  
+  // Set canvas size to match the actual displayed image size
+  canvas.width = displayWidth
+  canvas.height = displayHeight
+  canvas.style.width = `${displayWidth}px`
+  canvas.style.height = `${displayHeight}px`
 
   // Configure canvas context for better rendering
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
 
-  // Calculate object-contain bounds for the image
-  const canvasAspectRatio = containerWidth / containerHeight
-  const imageAspectRatio = img.naturalWidth / img.naturalHeight
+  // Calculate object-contain bounds for the image (now canvas fills exactly the image area)
+  const canvasAspectRatio = displayWidth / displayHeight
   
   let drawWidth, drawHeight, drawX, drawY
   
-  if (imageAspectRatio > canvasAspectRatio) {
-    // Image is wider than container - fit to width
-    drawWidth = containerWidth
-    drawHeight = drawWidth / imageAspectRatio
-    drawX = 0
-    drawY = (containerHeight - drawHeight) / 2
-  } else {
-    // Image is taller than container - fit to height
-    drawHeight = containerHeight
-    drawWidth = drawHeight * imageAspectRatio
-    drawX = (containerWidth - drawWidth) / 2
-    drawY = 0
-  }
+  // Since canvas size matches display size, draw the image to fill the entire canvas
+  drawWidth = displayWidth
+  drawHeight = displayHeight
+  drawX = 0
+  drawY = 0
   
   // Store bounds for use in drawing and hit-testing
   canvasImageBounds.value = {
@@ -1007,6 +1111,9 @@ const drawMagnifyingGlass = (ctx) => {
   // Draw magnifying glass border with color coding
   drawMagnifyingGlassBorder(ctx, x, y, radius)
   
+  // Draw directional guidance
+  drawMagnifyingGlassGuidance(ctx, x, y, radius)
+  
   // Draw box information overlay
   drawMagnifyingGlassOverlay(ctx, x, y, radius)
 }
@@ -1035,36 +1142,60 @@ const drawMagnifyingGlassBorder = (ctx, centerX, centerY, radius) => {
     // Draw corner indicators for other boxes (if any)
     if (magnifyingGlassBoxes.value.length > 1) {
       const indicatorSize = 8
-      const cornerOffset = 12
+      
+      // Calculate safe distance outside the magnifying glass based on radius and zoom
+      // Ensure indicators are always outside the visible content area
+      const minSafeDistance = 16 // Minimum distance from circle edge
+      const dynamicOffset = Math.max(minSafeDistance, radius * 0.25) // Scale with magnifying glass size
+      const safeDistance = radius + dynamicOffset
+      
+      // Position indicators outside the magnifying glass circle
       const corners = [
-        { x: centerX + radius - cornerOffset, y: centerY - radius + cornerOffset }, // Top-right
-        { x: centerX + radius - cornerOffset, y: centerY + radius - cornerOffset }, // Bottom-right
-        { x: centerX - radius + cornerOffset, y: centerY + radius - cornerOffset }, // Bottom-left
-        { x: centerX - radius + cornerOffset, y: centerY - radius + cornerOffset }  // Top-left
+        { x: centerX + Math.cos(-Math.PI/4) * safeDistance, y: centerY + Math.sin(-Math.PI/4) * safeDistance }, // Top-right (diagonal)
+        { x: centerX + Math.cos(Math.PI/4) * safeDistance, y: centerY + Math.sin(Math.PI/4) * safeDistance },   // Bottom-right (diagonal)
+        { x: centerX + Math.cos(3*Math.PI/4) * safeDistance, y: centerY + Math.sin(3*Math.PI/4) * safeDistance }, // Bottom-left (diagonal)
+        { x: centerX + Math.cos(-3*Math.PI/4) * safeDistance, y: centerY + Math.sin(-3*Math.PI/4) * safeDistance }  // Top-left (diagonal)
       ]
       
       // Show up to 4 additional boxes in corners
       magnifyingGlassBoxes.value.slice(1, 5).forEach((box, index) => {
         const corner = corners[index]
         if (corner) {
-          // Draw small colored square indicator
-          ctx.fillStyle = box.color
-          ctx.fillRect(
-            corner.x - indicatorSize / 2, 
-            corner.y - indicatorSize / 2, 
-            indicatorSize, 
-            indicatorSize
-          )
-          
-          // Add white border to indicator for better visibility
-          ctx.strokeStyle = 'white'
-          ctx.lineWidth = 1
-          ctx.strokeRect(
-            corner.x - indicatorSize / 2, 
-            corner.y - indicatorSize / 2, 
-            indicatorSize, 
-            indicatorSize
-          )
+          // Check if indicator would be within canvas bounds
+          const canvas = imageCanvas.value
+          if (corner.x - indicatorSize/2 >= 0 && corner.x + indicatorSize/2 <= canvas.width &&
+              corner.y - indicatorSize/2 >= 0 && corner.y + indicatorSize/2 <= canvas.height) {
+            
+            // Draw small colored square indicator with shadow for better visibility
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.3)'
+            ctx.shadowBlur = 3
+            ctx.shadowOffsetX = 1
+            ctx.shadowOffsetY = 1
+            
+            ctx.fillStyle = box.color
+            ctx.fillRect(
+              corner.x - indicatorSize / 2, 
+              corner.y - indicatorSize / 2, 
+              indicatorSize, 
+              indicatorSize
+            )
+            
+            // Reset shadow
+            ctx.shadowColor = 'transparent'
+            ctx.shadowBlur = 0
+            ctx.shadowOffsetX = 0
+            ctx.shadowOffsetY = 0
+            
+            // Add white border to indicator for better visibility
+            ctx.strokeStyle = 'white'
+            ctx.lineWidth = 2
+            ctx.strokeRect(
+              corner.x - indicatorSize / 2, 
+              corner.y - indicatorSize / 2, 
+              indicatorSize, 
+              indicatorSize
+            )
+          }
         }
       })
     }
@@ -1076,6 +1207,292 @@ const drawMagnifyingGlassBorder = (ctx, centerX, centerY, radius) => {
   ctx.beginPath()
   ctx.arc(centerX, centerY, radius + borderWidth / 2 + 1, 0, 2 * Math.PI)
   ctx.stroke()
+  
+  // Add inner border for depth effect
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.arc(centerX, centerY, radius - 1, 0, 2 * Math.PI)
+  ctx.stroke()
+}
+
+const drawMagnifyingGlassGuidance = (ctx, centerX, centerY, radius) => {
+  const crosshairSize = Math.min(12, radius * 0.2)
+  
+  // Check if we have a dominant box to guide towards
+  const dominantBox = magnifyingGlassBoxes.value.length > 0 ? magnifyingGlassBoxes.value[0] : null
+  
+  if (dominantBox && dominantBox.bbox_normalized && canvasImageBounds.value) {
+    const bounds = canvasImageBounds.value
+    const { x1, y1, x2, y2 } = dominantBox.bbox_normalized
+    
+    // Calculate box center in canvas coordinates
+    const boxCenterX = ((x1 + x2) / 2) * bounds.drawWidth + bounds.drawX
+    const boxCenterY = ((y1 + y2) / 2) * bounds.drawHeight + bounds.drawY
+    
+    // Use the distance data we already calculated
+    const distanceToBoxCenter = dominantBox.distanceToCenter || 0
+    const isInsideBox = dominantBox.isInside || false
+    
+    // Be more strict about when to show special states
+    // Only show "near center" when actually close to center (within 8px)
+    const isNearBoxCenter = distanceToBoxCenter < 8
+    // Only show "inside box" indicators when BOTH inside the box AND close to center
+    const showInsideBoxState = isInsideBox && isNearBoxCenter
+    
+    // Always show arrow - it provides useful distance information
+    const shouldShowArrow = true
+    
+    if (shouldShowArrow) {
+      // Calculate direction to box center
+      const deltaX = boxCenterX - centerX
+      const deltaY = boxCenterY - centerY
+      
+      // Draw directional arrow pointing to box center
+      const angle = Math.atan2(deltaY, deltaX)
+      const arrowDistance = radius * 0.6 // Position arrow inside the magnifying glass
+      const arrowX = centerX + Math.cos(angle) * arrowDistance
+      const arrowY = centerY + Math.sin(angle) * arrowDistance
+      
+      // Use different arrow style when inside the box vs outside
+      // Use box color with better contrast instead of gold
+      let arrowBgColor
+      if (isInsideBox) {
+        arrowBgColor = dominantBox.color
+      } else {
+        arrowBgColor = 'rgba(0, 0, 0, 0.8)'
+      }
+      
+      // Draw arrow background (semi-transparent circle) - make it bigger when inside box
+      const bgRadius = isInsideBox ? 10 : 8
+      ctx.fillStyle = arrowBgColor
+      ctx.beginPath()
+      ctx.arc(arrowX, arrowY, bgRadius, 0, 2 * Math.PI)
+      ctx.fill()
+      
+      // Draw arrow pointing to box center
+      const arrowSize = isInsideBox ? 7 : 6 // Slightly bigger when inside
+      ctx.fillStyle = isInsideBox ? 'white' : dominantBox.color // Inverted colors for better contrast
+      ctx.strokeStyle = isInsideBox ? 'rgba(0, 0, 0, 0.5)' : 'white' 
+      ctx.lineWidth = 2
+      
+      ctx.beginPath()
+      ctx.moveTo(
+        arrowX + Math.cos(angle) * arrowSize,
+        arrowY + Math.sin(angle) * arrowSize
+      )
+      ctx.lineTo(
+        arrowX + Math.cos(angle + 2.5) * arrowSize * 0.6,
+        arrowY + Math.sin(angle + 2.5) * arrowSize * 0.6
+      )
+      ctx.lineTo(
+        arrowX + Math.cos(angle - 2.5) * arrowSize * 0.6,
+        arrowY + Math.sin(angle - 2.5) * arrowSize * 0.6
+      )
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+      
+      // Draw distance indicator text with consistent styling
+      const distance = Math.round(distanceToBoxCenter)
+      ctx.font = 'bold 10px Inter'
+      ctx.fillStyle = 'white'
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)'
+      ctx.lineWidth = 2
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      
+      // Position text near the arrow
+      const textX = arrowX + Math.cos(angle + Math.PI/2) * 15
+      const textY = arrowY + Math.sin(angle + Math.PI/2) * 15
+      
+      // Add subtle prefix when inside box to clarify
+      const displayText = isInsideBox ? `→ ${distance}px` : `${distance}px`
+      
+      ctx.strokeText(displayText, textX, textY)
+      ctx.fillText(displayText, textX, textY)
+    }
+    
+    // Draw enhanced crosshair based on strict conditions
+    if (showInsideBoxState) {
+      // Special "inside box and near center" crosshair - this is the target state
+      drawBullseyeCrosshair(ctx, centerX, centerY, crosshairSize, dominantBox.color, true)
+    } else if (isNearBoxCenter) {
+      // Just near center but not inside box - regular bullseye
+      drawBullseyeCrosshair(ctx, centerX, centerY, crosshairSize, dominantBox.color, false)
+    } else {
+      // Standard crosshair with direction hint
+      const deltaX = boxCenterX - centerX
+      const deltaY = boxCenterY - centerY
+      drawStandardCrosshair(ctx, centerX, centerY, crosshairSize, dominantBox.color, deltaX, deltaY)
+    }
+  } else {
+    // No dominant box - draw standard neutral crosshair
+    drawStandardCrosshair(ctx, centerX, centerY, crosshairSize, '#6B7280', 0, 0)
+  }
+}
+
+const drawBullseyeCrosshair = (ctx, centerX, centerY, size, boxColor, isInsideBox = false) => {
+  if (isInsideBox) {
+    // DRAMATICALLY DIFFERENT: Solid filled circle with crosshair overlay - "TARGET ACQUIRED"
+    
+    // Large filled circle background
+    ctx.fillStyle = `${boxColor}E0` // Semi-transparent
+    ctx.beginPath()
+    ctx.arc(centerX, centerY, size * 0.8, 0, 2 * Math.PI)
+    ctx.fill()
+    
+    // Solid border
+    ctx.strokeStyle = boxColor
+    ctx.lineWidth = 3
+    ctx.beginPath()
+    ctx.arc(centerX, centerY, size * 0.8, 0, 2 * Math.PI)
+    ctx.stroke()
+    
+    // White crosshair overlay (thick and bold)
+    const crossSize = size * 0.6
+    ctx.strokeStyle = 'white'
+    ctx.lineWidth = 4
+    ctx.setLineDash([])
+    
+    // Horizontal line
+    ctx.beginPath()
+    ctx.moveTo(centerX - crossSize, centerY)
+    ctx.lineTo(centerX + crossSize, centerY)
+    ctx.stroke()
+    
+    // Vertical line
+    ctx.beginPath()
+    ctx.moveTo(centerX, centerY - crossSize)
+    ctx.lineTo(centerX, centerY + crossSize)
+    ctx.stroke()
+    
+    // Add black outline to crosshair
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)'
+    ctx.lineWidth = 6
+    
+    // Horizontal line outline
+    ctx.beginPath()
+    ctx.moveTo(centerX - crossSize, centerY)
+    ctx.lineTo(centerX + crossSize, centerY)
+    ctx.stroke()
+    
+    // Vertical line outline
+    ctx.beginPath()
+    ctx.moveTo(centerX, centerY - crossSize)
+    ctx.lineTo(centerX, centerY + crossSize)
+    ctx.stroke()
+    
+    // Redraw white crosshair on top
+    ctx.strokeStyle = 'white'
+    ctx.lineWidth = 4
+    
+    // Horizontal line
+    ctx.beginPath()
+    ctx.moveTo(centerX - crossSize, centerY)
+    ctx.lineTo(centerX + crossSize, centerY)
+    ctx.stroke()
+    
+    // Vertical line
+    ctx.beginPath()
+    ctx.moveTo(centerX, centerY - crossSize)
+    ctx.lineTo(centerX, centerY + crossSize)
+    ctx.stroke()
+    
+    // Success indicator text
+    ctx.font = 'bold 8px Inter'
+    ctx.fillStyle = 'white'
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)'
+    ctx.lineWidth = 2
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.strokeText('TARGET', centerX, centerY + size + 8)
+    ctx.fillText('TARGET', centerX, centerY + size + 8)
+    
+  } else {
+    // COMPLETELY DIFFERENT: Traditional concentric rings - "APPROACHING TARGET"
+    
+    // Multiple thin rings (classic bullseye)
+    const rings = [
+      { radius: size * 0.8, color: boxColor, width: 2 },
+      { radius: size * 0.6, color: 'rgba(255, 255, 255, 0.9)', width: 2 },
+      { radius: size * 0.4, color: boxColor, width: 2 },
+      { radius: size * 0.2, color: 'rgba(255, 255, 255, 0.9)', width: 2 }
+    ]
+    
+    rings.forEach(ring => {
+      ctx.strokeStyle = ring.color
+      ctx.lineWidth = ring.width
+      ctx.setLineDash([])
+      ctx.beginPath()
+      ctx.arc(centerX, centerY, ring.radius, 0, 2 * Math.PI)
+      ctx.stroke()
+    })
+    
+    // Small center dot
+    ctx.fillStyle = boxColor
+    ctx.beginPath()
+    ctx.arc(centerX, centerY, 2, 0, 2 * Math.PI)
+    ctx.fill()
+    
+    // Approaching indicator text
+    ctx.font = 'bold 7px Inter'
+    ctx.fillStyle = boxColor
+    ctx.strokeStyle = 'white'
+    ctx.lineWidth = 2
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.strokeText('CLOSE', centerX, centerY + size + 8)
+    ctx.fillText('CLOSE', centerX, centerY + size + 8)
+  }
+}
+
+const drawStandardCrosshair = (ctx, centerX, centerY, size, color, deltaX, deltaY) => {
+  // Standard crosshair with optional directional bias
+  const hasDirection = deltaX !== 0 || deltaY !== 0
+  
+  // Make crosshair slightly biased toward the target direction
+  const biasStrength = hasDirection ? Math.min(size * 0.3, 4) : 0
+  const angle = hasDirection ? Math.atan2(deltaY, deltaX) : 0
+  
+  const offsetX = Math.cos(angle) * biasStrength
+  const offsetY = Math.sin(angle) * biasStrength
+  
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)'
+  ctx.lineWidth = 2.5
+  ctx.setLineDash([])
+  
+  // Vertical line with bias
+  ctx.beginPath()
+  ctx.moveTo(centerX + offsetX, centerY - size + offsetY)
+  ctx.lineTo(centerX + offsetX, centerY + size + offsetY)
+  ctx.stroke()
+  
+  // Horizontal line with bias
+  ctx.beginPath()
+  ctx.moveTo(centerX - size + offsetX, centerY + offsetY)
+  ctx.lineTo(centerX + size + offsetX, centerY + offsetY)
+  ctx.stroke()
+  
+  // White crosshair on top
+  ctx.strokeStyle = hasDirection ? color : 'rgba(255, 255, 255, 0.8)'
+  ctx.lineWidth = 1.5
+  ctx.setLineDash([3, 2])
+  
+  // Vertical line
+  ctx.beginPath()
+  ctx.moveTo(centerX + offsetX, centerY - size + offsetY)
+  ctx.lineTo(centerX + offsetX, centerY + size + offsetY)
+  ctx.stroke()
+  
+  // Horizontal line
+  ctx.beginPath()
+  ctx.moveTo(centerX - size + offsetX, centerY + offsetY)
+  ctx.lineTo(centerX + size + offsetX, centerY + offsetY)
+  ctx.stroke()
+  
+  // Reset line dash
+  ctx.setLineDash([])
 }
 
 const drawMagnifyingGlassOverlay = (ctx, centerX, centerY, radius) => {
@@ -1297,5 +1714,20 @@ button:active:not(:disabled) {
 /* Loading overlay styling */
 .absolute.inset-0 {
   backdrop-filter: blur(2px);
+}
+
+/* Keyboard shortcut styling */
+kbd {
+  background-color: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 3px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.2), 0 2px 0 0 rgba(255, 255, 255, 0.7) inset;
+  color: #374151;
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 2px 4px;
+  white-space: nowrap;
 }
 </style>
