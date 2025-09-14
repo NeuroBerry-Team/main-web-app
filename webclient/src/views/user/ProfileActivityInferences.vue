@@ -862,9 +862,90 @@ const backToGallery = () => {
   router.replace({ query: queryWithoutId })
 }
 
-const downloadResults = () => {
-  // TODO: Implement download functionality
-  console.warn('Download functionality not yet implemented')
+const downloadResults = async () => {
+  if (!selectedInference.value?.id) {
+    console.error('No inference ID available for download')
+    alert('No hay resultados disponibles para descargar')
+    return
+  }
+  
+  const apiUrl = import.meta.env.VITE_API_BASE_URL
+  const inferenceId = selectedInference.value.id
+
+  try {
+    const response = await fetch(`${apiUrl}/inferences/${inferenceId}/download`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Accept': 'application/zip, */*'
+      }
+    })
+    
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Server error ${response.status}: ${errorText}`)
+    }
+
+    const contentType = response.headers.get('Content-Type')
+    
+    if (contentType && contentType.includes('text/html')) {
+      const errorText = await response.text()
+      if (errorText.includes('<div id="app"></div>') || errorText.includes('@vite/client')) {
+        throw new Error('API backend is not accessible. Please check if the backend server is running on the correct port.')
+      } else {
+        throw new Error('Server returned an error page instead of the download file')
+      }
+    }
+    
+    if (contentType && contentType.includes('application/json')) {
+      const errorData = await response.json()
+      throw new Error(errorData.message || 'Server error occurred')
+    }
+    
+    if (!contentType || (!contentType.includes('application/zip') && !contentType.includes('application/octet-stream'))) {
+      throw new Error(`Unexpected response type: ${contentType}. Expected ZIP file.`)
+    }
+
+    const blob = await response.blob()
+    
+    if (blob.size === 0) {
+      throw new Error('Downloaded file is empty')
+    }
+
+    const url = window.URL.createObjectURL(new Blob([blob], { type: 'application/zip' }))
+    
+    let filename = `inference_${inferenceId}_results.zip`
+    const contentDisposition = response.headers.get('Content-Disposition')
+    
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/i)
+      if (filenameMatch && filenameMatch[1]) {
+        filename = filenameMatch[1].replace(/['"]/g, '')
+      }
+    }
+    
+    if (!filename.toLowerCase().endsWith('.zip')) {
+      filename += '.zip'
+    }
+
+    const downloadLink = document.createElement('a')
+    downloadLink.href = url
+    downloadLink.download = filename
+    downloadLink.style.display = 'none'
+    
+    document.body.appendChild(downloadLink)
+    downloadLink.click()
+    
+    setTimeout(() => {
+      document.body.removeChild(downloadLink)
+      window.URL.revokeObjectURL(url)
+    }, 100)
+    
+    alert('Descarga iniciada correctamente. El archivo se guardará en tu carpeta de descargas.')
+    
+  } catch (error) {
+    alert('Error al descargar los resultados. Por favor, inténtalo de nuevo.')
+  }
 }
 
 // Computed property for the current image with selected boxes

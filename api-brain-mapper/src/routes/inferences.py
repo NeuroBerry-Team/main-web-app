@@ -4,8 +4,9 @@ import datetime
 import requests
 import json
 from dotenv import load_dotenv
+from werkzeug.utils import secure_filename
 
-from flask import Blueprint, request, jsonify, abort, g, send_file
+from flask import Blueprint, request, jsonify, abort, g, send_file, Response
 from logs.logger import logger
 
 from ..database.dbConnection import db
@@ -253,3 +254,192 @@ def getInferenceMetadata(inference_id):
     except Exception:
         logger.exception(f"Error fetching metadata for inference {inference_id}")
         abort(500, "Error fetching metadata")
+
+
+@inferences.route("/<int:inference_id>/download", methods=["GET"])
+@auth_required()
+@rate_limit_api(max_attempts=5, window_minutes=10)
+def download_inferences(inference_id):
+    import tempfile
+    import zipfile
+    import os
+    import shutil
+    
+    # Create a temporary directory for this operation
+    temp_dir = None
+    zip_path = None
+    
+    def cleanup_temp_dir():
+        """Clean up temporary directory"""
+        if temp_dir and os.path.exists(temp_dir):
+            try:
+                shutil.rmtree(temp_dir)
+                pass
+            except Exception:
+                pass
+    
+    try:
+        # Fetch the inference from the database
+        inference = Inference.query.filter_by(id=inference_id, userId=g.uid).first()
+        if not inference:
+            return jsonify({"error": "Inference not found", "inference_id": inference_id}), 404
+            
+        if not inference.baseImageUrl or not inference.generatedImageUrl:
+            return jsonify({"error": "Incomplete inference data - missing image URLs"}), 400
+
+        temp_dir = tempfile.mkdtemp(prefix=f"inference_{inference_id}_")
+        
+        # Prepare file paths in temp directory
+        base_image_path = os.path.join(temp_dir, f"original_image_{inference.id}.jpg")
+        generated_image_path = os.path.join(temp_dir, f"analyzed_image_{inference.id}.jpg")
+        metadata_path = os.path.join(temp_dir, f"metadata_{inference.id}.json")
+
+        # Download files from MinIO
+        minioClient = getMinioClient()
+        s3Bucket = os.getenv("S3_BUCKET_INFERENCES_RESULTS")
+
+        try:
+            s3_live_base_url = os.getenv('S3_LIVE_BASE_URL')
+            s3_port = os.getenv('S3_PORT', '9000')
+            
+            def extract_object_key_from_url(url):
+                if url.startswith(s3_live_base_url):
+                    path_after_base = url[len(s3_live_base_url):]
+                else:
+                    alternative_bases = [
+                        f"http://localhost:{s3_port}/",
+                        f"http://127.0.0.1:{s3_port}/",
+                        f"http://s3:{s3_port}/",
+                    ]
+                    
+                    matched_base = None
+                    for alt_base in alternative_bases:
+                        if url.startswith(alt_base):
+                            matched_base = alt_base
+                            break
+                    
+                    if not matched_base:
+                        import re
+                        port_pattern = f"://[^/]+:{s3_port}/"
+                        match = re.search(port_pattern, url)
+                        if match:
+                            matched_base = url[:match.end()]
+                        else:
+                            url_parts = url.split('/')
+                            if len(url_parts) >= 4 and ':' in url_parts[2]:
+                                matched_base = '/'.join(url_parts[:3]) + '/'
+                            else:
+                                raise ValueError(f"URL doesn't match any expected MinIO pattern: {url}")
+                    
+                    path_after_base = url[len(matched_base):]
+                
+                if path_after_base.startswith(f"{s3Bucket}/"):
+                    return path_after_base[len(f"{s3Bucket}/"):]
+                else:
+                    return path_after_base
+            
+            base_object_key = extract_object_key_from_url(inference.baseImageUrl)
+            generated_object_key = extract_object_key_from_url(inference.generatedImageUrl)
+            
+            folder_path = "/".join(base_object_key.split("/")[:-1])
+            metadata_object_key = f"{folder_path}/metadata.json"
+
+            try:
+                minioClient.fget_object(s3Bucket, base_object_key, base_image_path)
+            except Exception as e:
+                raise Exception(f"Failed to download original image: {str(e)}")
+            
+            try:
+                minioClient.fget_object(s3Bucket, generated_object_key, generated_image_path)
+            except Exception as e:
+                raise Exception(f"Failed to download analyzed image: {str(e)}")
+            
+            try:
+                minioClient.fget_object(s3Bucket, metadata_object_key, metadata_path)
+            except Exception as e:
+                raise Exception(f"Failed to download metadata: {str(e)}")
+
+        except Exception as e:
+            cleanup_temp_dir()
+            abort(500, f"Download error: {str(e)}")
+
+        # Verify all files exist and have content
+        files_to_check = [
+            (base_image_path, "original image"),
+            (generated_image_path, "analyzed image"),
+            (metadata_path, "metadata")
+        ]
+        
+        for file_path, file_desc in files_to_check:
+            if not os.path.exists(file_path):
+                cleanup_temp_dir()
+                raise Exception(f"Failed to download {file_desc}")
+            if os.path.getsize(file_path) == 0:
+                cleanup_temp_dir()
+                raise Exception(f"{file_desc} is empty")
+
+        # Create ZIP file
+        zip_filename = f"inference_{inference.id}_results.zip"
+        zip_path = os.path.join(temp_dir, zip_filename)
+        
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as zipf:
+            # Add files with descriptive names
+            zipf.write(base_image_path, f"original_image_{inference.id}.jpg")
+            zipf.write(generated_image_path, f"analyzed_image_{inference.id}.jpg")
+            zipf.write(metadata_path, f"analysis_metadata_{inference.id}.json")
+            
+            # Add a README file
+            readme_content = f"""Resultados de Análisis - ID: {inference.id}
+Generado el: {inference.createdOn}
+Modelo utilizado: {inference.modelId}
+
+Archivos incluidos:
+- original_image_{inference.id}.jpg: La imagen original subida
+- analyzed_image_{inference.id}.jpg: Imagen con los objetos detectados resaltados
+- analysis_metadata_{inference.id}.json: Datos detallados del análisis (coordenadas de detección, puntuaciones de confianza, etc.)
+
+Este archivo ZIP fue generado por el sistema de análisis de IA NeuroBerry.
+"""
+            zipf.writestr(f"README_{inference.id}.txt", readme_content)
+
+        if not os.path.exists(zip_path):
+            cleanup_temp_dir()
+            raise Exception("Failed to create ZIP file")
+        
+        zip_size = os.path.getsize(zip_path)
+        if zip_size == 0:
+            cleanup_temp_dir()
+            raise Exception("Created ZIP file is empty")
+
+        def generate_file():
+            try:
+                with open(zip_path, 'rb') as f:
+                    while True:
+                        chunk = f.read(8192)
+                        if not chunk:
+                            break
+                        yield chunk
+            finally:
+                cleanup_temp_dir()
+
+        response = Response(
+            generate_file(),
+            mimetype='application/zip',
+            headers={
+                'Content-Disposition': f'attachment; filename="{secure_filename(zip_filename)}"',
+                'Content-Length': str(zip_size),
+                'Cache-Control': 'no-cache',
+                'Content-Type': 'application/zip'
+            }
+        )
+        
+        return response
+
+    except Exception as e:
+        cleanup_temp_dir()
+        
+        return jsonify({
+            "error": "Download failed",
+            "message": str(e),
+            "inference_id": inference_id
+        }), 500

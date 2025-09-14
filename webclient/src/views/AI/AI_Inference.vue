@@ -406,7 +406,8 @@
         <div class="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full max-w-md mx-auto">
           <button 
             @click="downloadResults"
-            class="flex-1 px-4 py-2 sm:px-6 sm:py-3 bg-indigo-600 text-white text-sm sm:text-base font-bold rounded-lg hover:bg-indigo-700 transition-all duration-300 flex items-center justify-center gap-2"
+            data-download-button
+            class="flex-1 px-4 py-2 sm:px-6 sm:py-3 bg-indigo-600 text-white text-sm sm:text-base font-bold rounded-lg hover:bg-indigo-700 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             💾 Descargar Resultados
           </button>
@@ -1608,14 +1609,124 @@ const getColorForClass = (className) => {
   return classMap[className] || '#6366F1'
 }
 
-const downloadResults = () => {
-  // TODO: Implement download functionality
-  console.log('Download functionality not yet implemented')
-  alert('Funcionalidad de descarga próximamente disponible')
+const downloadResults = async () => {
+  if (!result.value?.id) {
+    console.error('No inference ID available for download')
+    alert('No hay resultados disponibles para descargar')
+    return
+  }
+  
+  const apiUrl = import.meta.env.VITE_API_BASE_URL
+  const inferenceId = result.value.id
+
+  // Show loading state
+  const downloadButton = document.querySelector('[data-download-button]')
+  const originalText = downloadButton?.textContent
+  if (downloadButton) {
+    downloadButton.disabled = true
+    downloadButton.textContent = 'Descargando...'
+  }
+
+  try {
+    const response = await fetch(`${apiUrl}/inferences/${inferenceId}/download`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Accept': 'application/zip, */*'
+      }
+    })
+    
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Server error ${response.status}: ${errorText}`)
+    }
+
+    const contentType = response.headers.get('Content-Type')
+    
+    if (contentType && contentType.includes('text/html')) {
+      const errorText = await response.text()
+      if (errorText.includes('<div id="app"></div>') || errorText.includes('@vite/client')) {
+        throw new Error('API backend is not accessible. Please check if the backend server is running on the correct port.')
+      } else {
+        throw new Error('Server returned an error page instead of the download file')
+      }
+    }
+    
+    if (contentType && contentType.includes('application/json')) {
+      const errorData = await response.json()
+      throw new Error(errorData.message || 'Server error occurred')
+    }
+    
+    if (!contentType || (!contentType.includes('application/zip') && !contentType.includes('application/octet-stream'))) {
+      throw new Error(`Unexpected response type: ${contentType}. Expected ZIP file.`)
+    }
+
+    const blob = await response.blob()
+    
+    if (blob.size === 0) {
+      throw new Error('Downloaded file is empty')
+    }
+    
+    if (blob.size < 100) {
+      throw new Error('Downloaded file appears to be corrupted (too small)')
+    }
+
+    const url = window.URL.createObjectURL(new Blob([blob], { type: 'application/zip' }))
+    
+    let filename = `inference_${inferenceId}_results.zip`
+    const contentDisposition = response.headers.get('Content-Disposition')
+    
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/i)
+      if (filenameMatch && filenameMatch[1]) {
+        filename = filenameMatch[1].replace(/['"]/g, '')
+      }
+    }
+    
+    if (!filename.toLowerCase().endsWith('.zip')) {
+      filename += '.zip'
+    }
+
+    const downloadLink = document.createElement('a')
+    downloadLink.href = url
+    downloadLink.download = filename
+    downloadLink.style.display = 'none'
+    
+    document.body.appendChild(downloadLink)
+    downloadLink.click()
+    
+    setTimeout(() => {
+      document.body.removeChild(downloadLink)
+      window.URL.revokeObjectURL(url)
+    }, 100)
+    
+    alert('Descarga iniciada correctamente. El archivo se guardará en tu carpeta de descargas.')
+    
+  } catch (error) {
+    let errorMessage = 'Error al descargar los resultados.'
+    if (error.message.includes('Server error')) {
+      errorMessage += ' Error del servidor. Inténtalo de nuevo más tarde.'
+    } else if (error.message.includes('empty') || error.message.includes('corrupted')) {
+      errorMessage += ' El archivo descargado está dañado. Contacta al administrador.'
+    } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      errorMessage += ' Error de conexión. Verifica tu conexión a internet.'
+    } else {
+      errorMessage += ` Detalles: ${error.message}`
+    }
+    
+    alert(errorMessage)
+    
+  } finally {
+    // Restore button state
+    if (downloadButton) {
+      downloadButton.disabled = false
+      downloadButton.textContent = originalText || 'Descargar Resultados'
+    }
+  }
 }
 
 const handleImageError = (event) => {
-  event.target.src = '/frambuesas_1.jpg' // Fallback image
+  event.target.src = '/frambuesas_1.jpg' // TODO: Add the fallback image
 }
 </script>
 

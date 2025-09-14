@@ -5,6 +5,7 @@
 NeuroBerry es una plataforma modular desarrollada para la detección y clasificación automática del estado de madurez de frambuesas mediante técnicas de Visión por Computadora e Inteligencia Artificial. El sistema está diseñado para optimizar procesos de cosecha, mejorar el control de calidad y proporcionar trazabilidad en la producción agrícola.
 
 ### 🎯 Objetivos
+
 - Automatizar la identificación del estado de madurez de frambuesas
 - Reducir costos de mano de obra y variabilidad humana en la clasificación
 - Proporcionar herramientas de análisis y visualización de datos
@@ -53,6 +54,7 @@ docker volume prune -f
 **1.2 Creación de Archivos de Logs**
 
 Crear los siguientes archivos en una ubicación accesible:
+
 ```bash
 touch /ruta/deseada/app-flask-errors.log
 touch /ruta/deseada/nn-flask-errors.log
@@ -63,11 +65,13 @@ touch /ruta/deseada/nn-flask-errors.log
 **2.1 Configuración Principal del Proyecto**
 
 1. Copiar el archivo de plantilla:
+
    ```bash
    cp .env_template .env
    ```
 
 2. Editar `.env` y configurar las variables de desarrollo:
+
    ```env
    # Rutas de logs
    FLASK_LOGFILE_PATH=/ruta/absoluta/app-flask-errors.log
@@ -86,16 +90,19 @@ cp initPg_template.sh initPg.sh
 **2.3 Configuración de la API Principal**
 
 1. Navegar al directorio de la API:
+
    ```bash
    cd api-brain-mapper
    ```
 
 2. Crear archivo de configuración:
+
    ```bash
    cp .env.format .env
    ```
 
 3. Configurar las variables:
+
    ```env
    ENV_MODE=development
 
@@ -124,16 +131,19 @@ cp initPg_template.sh initPg.sh
 **2.4 Configuración del Cliente Web**
 
 1. Navegar al directorio del cliente:
+
    ```bash
    cd webclient
    ```
 
 2. Crear archivo de configuración:
+
    ```bash
    cp .env.format .env
    ```
 
 3. Configurar la URL de la API:
+
    ```env
    VITE_API_BASE_URL=http://localhost:5000
    ```
@@ -168,9 +178,9 @@ Una vez iniciado el sistema, los servicios estarán disponibles en:
 
 | Servicio | URL | Descripción |
 |----------|-----|-------------|
-| **Aplicación Web** | http://localhost:3003 | Interfaz principal del usuario |
-| **API Principal** | http://localhost:5000 | API RESTful para gestión de datos |
-| **Consola MinIO** | http://localhost:9001 | Gestión de almacenamiento de archivos |
+| **Aplicación Web** | <http://localhost:3003> | Interfaz principal del usuario |
+| **API Principal** | <http://localhost:5000> | API RESTful para gestión de datos |
+| **Consola MinIO** | <http://localhost:9001> | Gestión de almacenamiento de archivos |
 | **Base de Datos** | localhost:5432 | PostgreSQL (acceso directo) |
 
 ### 👤 Credenciales por Defecto
@@ -191,19 +201,19 @@ Para configurar la API de Inferencia Neural, consulte la documentación específ
 
 El sistema incluye configuración automática de almacenamiento que elimina la configuración manual:
 
-### Características Automatizadas:
+### Características Automatizadas
 
 1. **Creación de Buckets**: `dataset` e `inferences`
 2. **Configuración de Permisos**: Acceso público de lectura
 3. **Gestión de Usuarios**: Creación automática con credenciales especificadas
 4. **Aplicación de Políticas**: Configuración desde `minio-policy.json`
 
-### Archivos de Configuración:
+### Archivos de Configuración
 
 - `setup-minio.sh`: Script de configuración automática
 - `minio-policy.json`: Definición de políticas de acceso
 
-### Verificación de Configuración:
+### Verificación de Configuración
 
 ```bash
 # Verificar buckets creados
