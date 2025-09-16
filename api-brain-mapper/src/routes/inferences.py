@@ -6,12 +6,13 @@ import json
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
 
-from flask import Blueprint, request, jsonify, abort, g, send_file, Response
+from flask import Blueprint, request, jsonify, abort, g, Response
 from logs.logger import logger
 
 from ..database.dbConnection import db
 from ..models.inference import Inference
 from ..models.model import Model
+from ..models.audit_log import AuditLog
 from ..security.decorators_utils import auth_required
 from ..security.input_validation import InputValidator
 from ..security.file_upload_security import FileUploadSecurity
@@ -264,11 +265,11 @@ def download_inferences(inference_id):
     import zipfile
     import os
     import shutil
-    
+
     # Create a temporary directory for this operation
     temp_dir = None
     zip_path = None
-    
+
     def cleanup_temp_dir():
         """Clean up temporary directory"""
         if temp_dir and os.path.exists(temp_dir):
@@ -277,21 +278,29 @@ def download_inferences(inference_id):
                 pass
             except Exception:
                 pass
-    
+
     try:
         # Fetch the inference from the database
         inference = Inference.query.filter_by(id=inference_id, userId=g.uid).first()
         if not inference:
-            return jsonify({"error": "Inference not found", "inference_id": inference_id}), 404
-            
+            return (
+                jsonify({"error": "Inference not found", "inference_id": inference_id}),
+                404,
+            )
+
         if not inference.baseImageUrl or not inference.generatedImageUrl:
-            return jsonify({"error": "Incomplete inference data - missing image URLs"}), 400
+            return (
+                jsonify({"error": "Incomplete inference data - missing image URLs"}),
+                400,
+            )
 
         temp_dir = tempfile.mkdtemp(prefix=f"inference_{inference_id}_")
-        
+
         # Prepare file paths in temp directory
         base_image_path = os.path.join(temp_dir, f"original_image_{inference.id}.jpg")
-        generated_image_path = os.path.join(temp_dir, f"analyzed_image_{inference.id}.jpg")
+        generated_image_path = os.path.join(
+            temp_dir, f"analyzed_image_{inference.id}.jpg"
+        )
         metadata_path = os.path.join(temp_dir, f"metadata_{inference.id}.json")
 
         # Download files from MinIO
@@ -299,48 +308,53 @@ def download_inferences(inference_id):
         s3Bucket = os.getenv("S3_BUCKET_INFERENCES_RESULTS")
 
         try:
-            s3_live_base_url = os.getenv('S3_LIVE_BASE_URL')
-            s3_port = os.getenv('S3_PORT', '9000')
-            
+            s3_live_base_url = os.getenv("S3_LIVE_BASE_URL")
+            s3_port = os.getenv("S3_PORT", "9000")
+
             def extract_object_key_from_url(url):
                 if url.startswith(s3_live_base_url):
-                    path_after_base = url[len(s3_live_base_url):]
+                    path_after_base = url[len(s3_live_base_url) :]
                 else:
                     alternative_bases = [
                         f"http://localhost:{s3_port}/",
                         f"http://127.0.0.1:{s3_port}/",
                         f"http://s3:{s3_port}/",
                     ]
-                    
+
                     matched_base = None
                     for alt_base in alternative_bases:
                         if url.startswith(alt_base):
                             matched_base = alt_base
                             break
-                    
+
                     if not matched_base:
                         import re
+
                         port_pattern = f"://[^/]+:{s3_port}/"
                         match = re.search(port_pattern, url)
                         if match:
-                            matched_base = url[:match.end()]
+                            matched_base = url[: match.end()]
                         else:
-                            url_parts = url.split('/')
-                            if len(url_parts) >= 4 and ':' in url_parts[2]:
-                                matched_base = '/'.join(url_parts[:3]) + '/'
+                            url_parts = url.split("/")
+                            if len(url_parts) >= 4 and ":" in url_parts[2]:
+                                matched_base = "/".join(url_parts[:3]) + "/"
                             else:
-                                raise ValueError(f"URL doesn't match any expected MinIO pattern: {url}")
-                    
-                    path_after_base = url[len(matched_base):]
-                
+                                raise ValueError(
+                                    f"URL doesn't match any expected MinIO pattern: {url}"
+                                )
+
+                    path_after_base = url[len(matched_base) :]
+
                 if path_after_base.startswith(f"{s3Bucket}/"):
-                    return path_after_base[len(f"{s3Bucket}/"):]
+                    return path_after_base[len(f"{s3Bucket}/") :]
                 else:
                     return path_after_base
-            
+
             base_object_key = extract_object_key_from_url(inference.baseImageUrl)
-            generated_object_key = extract_object_key_from_url(inference.generatedImageUrl)
-            
+            generated_object_key = extract_object_key_from_url(
+                inference.generatedImageUrl
+            )
+
             folder_path = "/".join(base_object_key.split("/")[:-1])
             metadata_object_key = f"{folder_path}/metadata.json"
 
@@ -348,12 +362,14 @@ def download_inferences(inference_id):
                 minioClient.fget_object(s3Bucket, base_object_key, base_image_path)
             except Exception as e:
                 raise Exception(f"Failed to download original image: {str(e)}")
-            
+
             try:
-                minioClient.fget_object(s3Bucket, generated_object_key, generated_image_path)
+                minioClient.fget_object(
+                    s3Bucket, generated_object_key, generated_image_path
+                )
             except Exception as e:
                 raise Exception(f"Failed to download analyzed image: {str(e)}")
-            
+
             try:
                 minioClient.fget_object(s3Bucket, metadata_object_key, metadata_path)
             except Exception as e:
@@ -367,9 +383,9 @@ def download_inferences(inference_id):
         files_to_check = [
             (base_image_path, "original image"),
             (generated_image_path, "analyzed image"),
-            (metadata_path, "metadata")
+            (metadata_path, "metadata"),
         ]
-        
+
         for file_path, file_desc in files_to_check:
             if not os.path.exists(file_path):
                 cleanup_temp_dir()
@@ -381,13 +397,15 @@ def download_inferences(inference_id):
         # Create ZIP file
         zip_filename = f"inference_{inference.id}_results.zip"
         zip_path = os.path.join(temp_dir, zip_filename)
-        
-        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as zipf:
+
+        with zipfile.ZipFile(
+            zip_path, "w", zipfile.ZIP_DEFLATED, compresslevel=6
+        ) as zipf:
             # Add files with descriptive names
             zipf.write(base_image_path, f"original_image_{inference.id}.jpg")
             zipf.write(generated_image_path, f"analyzed_image_{inference.id}.jpg")
             zipf.write(metadata_path, f"analysis_metadata_{inference.id}.json")
-            
+
             # Add a README file
             readme_content = f"""Resultados de Análisis - ID: {inference.id}
 Generado el: {inference.createdOn}
@@ -405,7 +423,7 @@ Este archivo ZIP fue generado por el sistema de análisis de IA NeuroBerry.
         if not os.path.exists(zip_path):
             cleanup_temp_dir()
             raise Exception("Failed to create ZIP file")
-        
+
         zip_size = os.path.getsize(zip_path)
         if zip_size == 0:
             cleanup_temp_dir()
@@ -413,7 +431,7 @@ Este archivo ZIP fue generado por el sistema de análisis de IA NeuroBerry.
 
         def generate_file():
             try:
-                with open(zip_path, 'rb') as f:
+                with open(zip_path, "rb") as f:
                     while True:
                         chunk = f.read(8192)
                         if not chunk:
@@ -424,22 +442,144 @@ Este archivo ZIP fue generado por el sistema de análisis de IA NeuroBerry.
 
         response = Response(
             generate_file(),
-            mimetype='application/zip',
+            mimetype="application/zip",
             headers={
-                'Content-Disposition': f'attachment; filename="{secure_filename(zip_filename)}"',
-                'Content-Length': str(zip_size),
-                'Cache-Control': 'no-cache',
-                'Content-Type': 'application/zip'
-            }
+                "Content-Disposition": f'attachment; filename="{secure_filename(zip_filename)}"',
+                "Content-Length": str(zip_size),
+                "Cache-Control": "no-cache",
+                "Content-Type": "application/zip",
+            },
         )
-        
+
         return response
 
     except Exception as e:
         cleanup_temp_dir()
-        
-        return jsonify({
-            "error": "Download failed",
-            "message": str(e),
-            "inference_id": inference_id
-        }), 500
+
+        return (
+            jsonify(
+                {
+                    "error": "Download failed",
+                    "message": str(e),
+                    "inference_id": inference_id,
+                }
+            ),
+            500,
+        )
+
+
+@inferences.route("/<int:inference_id>", methods=["DELETE"])
+@auth_required()
+@rate_limit_api(max_attempts=5, window_minutes=10)
+def delete_inference(inference_id):
+    try:
+        # Get the inference from database
+        inference = Inference.query.filter_by(id=inference_id, userId=g.uid).first()
+
+        if not inference:
+            return (
+                jsonify({"error": "Inference not found", "inference_id": inference_id}),
+                404,
+            )
+
+        # If we have inference data (there should always be), construct the folder path
+        if inference.generatedImageUrl:
+            base_object_key = inference.generatedImageUrl.split("/")[-2:]
+            folder_name = base_object_key[0]  # UUID
+        elif inference.baseImageUrl:
+            base_object_key = inference.baseImageUrl.split("/")[-2:]
+            folder_name = base_object_key[0]  # UUID
+        else:
+            return (
+                jsonify(
+                    {
+                        "error": "Inference has no associated images to delete",
+                        "inference_id": inference_id,
+                    }
+                ),
+                400,
+            )
+
+        minioClient = getMinioClient()
+        s3Bucket = os.getenv("S3_BUCKET_INFERENCES_RESULTS")
+        try:
+            from minio.deleteobjects import DeleteObject
+
+            # List and delete all objects under the user's inference folder
+            objects = list(
+                minioClient.list_objects(s3Bucket, prefix=f"{g.uid}/{folder_name}/")
+            )
+            if objects:
+                delete_object_list = [DeleteObject(obj.object_name) for obj in objects]
+                delete_results = minioClient.remove_objects(
+                    s3Bucket, delete_object_list
+                )
+                errors = list(delete_results)
+                if errors:
+                    for error in errors:
+                        logger.error(
+                            f"Error deleting object {error.object_name} for inference {inference_id}: {error.code} - {error.message}"
+                        )
+                    raise Exception(
+                        f"Error deleting object {error.object_name}: {error.code} - {error.message}"
+                    )
+                logger.info(
+                    f"Deleted {len(objects)} objects from MinIO for inference {inference_id}"
+                )
+            else:
+                logger.warning(
+                    f"No objects found in MinIO for inference {inference_id}"
+                )
+        except Exception as e:
+            logger.exception(
+                f"Error deleting objects from MinIO for inference {inference_id}: {str(e)}"
+            )
+            return (
+                jsonify(
+                    {
+                        "error": "Error deleting associated images from storage",
+                        "message": str(e),
+                        "inference_id": inference_id,
+                    }
+                ),
+                500,
+            )
+
+        # Only after successfully deleting from MinIO, delete the DB record
+        db.session.delete(inference)
+        db.session.commit()
+        logger.info(f"Deleted inference {inference_id} from database")
+
+        # Create audit log for inference deletion
+        try:
+            audit_log = AuditLog(
+                userId=g.uid,
+                action="INFERENCE_DELETED",
+                entityType="inference",
+                entityId=inference_id,
+                timestamp=datetime.datetime.utcnow(),
+            )
+            db.session.add(audit_log)
+            db.session.commit()
+            logger.info(
+                f"Audit log created for inference deletion {inference_id} by user {g.uid}"
+            )
+        except Exception as audit_error:
+            logger.warning(
+                f"Could not create audit log for inference deletion: {audit_error}"
+            )
+
+        return jsonify({"success": True, "message": "Inference deleted"}), 200
+    except Exception as e:
+        logger.exception(f"Error deleting inference {inference_id}: {str(e)}")
+        db.session.rollback()
+        return (
+            jsonify(
+                {
+                    "error": "Error deleting inference",
+                    "message": str(e),
+                    "inference_id": inference_id,
+                }
+            ),
+            500,
+        )

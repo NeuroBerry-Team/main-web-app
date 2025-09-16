@@ -110,8 +110,8 @@
                     <p class="text-sm text-gray-600">
                       {{ formatActivityTime(analysis.createdOn) }}
                       <span v-if="analysis.confidence" class="ml-2">
-                        • Confianza: {{ Math.round(analysis.confidence * 100) }}%
-                      </span>
+                        • Confianza: {{ Math.round(analysis.confidence * 100) }}% 
+                      </span> <!-- TODO: Get the proper confidence, this is hardcoded -->
                     </p>
                   </div>
                 </div>

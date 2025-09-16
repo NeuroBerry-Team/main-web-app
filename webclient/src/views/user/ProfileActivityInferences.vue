@@ -572,6 +572,13 @@
                   Descargar Resultados
                 </button>
               </div>
+
+              <div class="pt-4">
+                <button @click="deleteInference"
+                  class="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200">
+                  Eliminar Análisis
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -584,9 +591,12 @@
 import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useMinioMetadata } from '../../composables/use_minio_metadata.js'
+import { useCSRF } from '../../composables/use_csrf.js'
 
 const router = useRouter()
 const route = useRoute()
+
+const { makeSecureRequest } = useCSRF()
 
 // Minio metadata composable
 const {
@@ -948,6 +958,53 @@ const downloadResults = async () => {
   }
 }
 
+const deleteInference = async () => {
+  if (!selectedInference.value?.id) {
+    console.error('No inference ID available for deletion')
+    alert('No hay análisis seleccionado para eliminar')
+    return
+  }
+  
+  const confirmation = confirm('¿Estás seguro de que deseas eliminar este análisis? Esta acción no se puede deshacer.')
+  if (!confirmation) return
+  
+  const apiUrl = import.meta.env.VITE_API_BASE_URL
+  const inferenceId = selectedInference.value.id
+
+  try {
+    const response = await makeSecureRequest(`${apiUrl}/inferences/${inferenceId}`, {
+      method: 'DELETE',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+    
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Server error ${response.status}: ${errorText}`)
+    }
+
+    const data = await response.json()
+    
+    if (data.success) {
+      // Remove from local list
+      inferences.value = inferences.value.filter(i => i.id !== inferenceId)
+      // Clear metadata cache for this inference
+      clearMetadata(inferenceId)
+      // Close detail view
+      closeInferenceDetail()
+      alert('Análisis eliminado correctamente.')
+    } else {
+      throw new Error(data.error || 'Failed to delete inference')
+    }
+    
+  } catch (error) {
+    console.error('Error deleting inference:', error)
+    alert('Error al eliminar el análisis. Por favor, inténtalo de nuevo.')
+  }
+}
+
 // Computed property for the current image with selected boxes
 const currentResultImage = computed(() => {
   if (!selectedInference.value) return null
@@ -969,11 +1026,6 @@ const getCachedImageUrl = (originalUrl) => {
   // For now, just return the original URL and let CSS handle the resizing
   // This is not ideal but avoids the double download issue
   // TODO: Implement server-side thumbnail generation
-  return originalUrl
-}
-
-const getFullSizeImageUrl = (originalUrl) => {
-  // For detail views, return the original URL
   return originalUrl
 }
 
