@@ -27,15 +27,23 @@ class NnAPIClient:
         token = jwt.encode(payload, self.secret_key, algorithm="HS256")
         return token
 
-    def generateInference(self, data=None):
+    def generateInferenceWithBinary(
+        self, image_data, model_name, original_filename="image.jpg"
+    ):
+        """
+        Generate inference using binary image data
+        """
         token = self._generateToken()
         url = f"{self.base_url}/inferencia"
         headers = {
             "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
         }
 
-        response = requests.post(url, json=data, headers=headers)
+        # Prepare multipart form data
+        files = {"image": (original_filename, image_data, "image/jpeg")}
+        data = {"model_name": model_name}
+
+        response = requests.post(url, files=files, data=data, headers=headers)
 
         if response.status_code != 200:
             response.raise_for_status()
@@ -57,6 +65,27 @@ class NnAPIClient:
         }
 
         response = requests.post(url, json=data, headers=headers)
+
+        if response.status_code != 200:
+            response.raise_for_status()
+
+        return response.json()
+
+    def uploadDatasetForTraining(self, dataset_data, dataset_id, model_name, filename):
+        """
+        Upload dataset binary data to NN API for training
+        """
+        token = self._generateToken()
+        url = f"{self.base_url}/datasets/upload"
+        headers = {
+            "Authorization": f"Bearer {token}",
+        }
+
+        # Prepare multipart form data
+        files = {"dataset": (filename, dataset_data, "application/zip")}
+        data = {"dataset_id": dataset_id, "model_name": model_name}
+
+        response = requests.post(url, files=files, data=data, headers=headers)
 
         if response.status_code != 200:
             response.raise_for_status()

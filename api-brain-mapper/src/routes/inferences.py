@@ -139,18 +139,72 @@ def generateInference():
     if not baseImageUrl.startswith(expected_base_url):
         abort(400, "Invalid image URL")
 
-    # Make API call to ANN-API to make the inference
+    # Download image from S3 and send to NN API
     try:
         # Get the name of the model. NN API needs it to switch models.
         model_name = model.name
-        payload = {"imgObjectKey": imgObjectKey, "modelName": model_name}
+
+        # Download image from S3/Minio
+        minioClient = getMinioClient()
+        s3Bucket = os.getenv("S3_BUCKET_INFERENCES_RESULTS")
+
+        logger.info(f"Downloading image from S3: {imgObjectKey}")
+        image_response = minioClient.get_object(s3Bucket, imgObjectKey)
+        image_data = image_response.read()
+        image_response.close()
+        image_response.release_conn()
+
         logger.info(
             f"Generating inference for user {g.uid}: {imgObjectKey} with model {model_name}"
         )
-        json_response = nnClient.generateInference(payload)
-        generatedImageUrl = json_response["generatedImgUrl"]
-        # Get the metadata URL from NN API response
-        metadataUrl = json_response.get("metadataUrl")
+
+        # Send binary image data to NN API
+        json_response = nnClient.generateInferenceWithBinary(
+            image_data, model_name, imgObjectKey
+        )
+
+        # Extract base64 image and metadata from NN API response
+        result_image_b64 = json_response["result_image"]
+        metadata = json_response["metadata"]
+
+        # Decode base64 image
+        import base64
+
+        result_image_data = base64.b64decode(result_image_b64)
+
+        # Upload result image to S3
+        folder_name = imgObjectKey.split("/")[1]  # Extract folder from object key
+        result_object_key = f"{g.uid}/{folder_name}/inference_result.jpg"
+        metadata_object_key = f"{g.uid}/{folder_name}/metadata.json"
+
+        # Upload result image
+        from io import BytesIO
+
+        minioClient.put_object(
+            s3Bucket,
+            result_object_key,
+            BytesIO(result_image_data),
+            length=len(result_image_data),
+            content_type="image/jpeg",
+        )
+
+        # Upload metadata as JSON
+        import json as json_lib
+
+        metadata_json = json_lib.dumps(metadata).encode("utf-8")
+        minioClient.put_object(
+            s3Bucket,
+            metadata_object_key,
+            BytesIO(metadata_json),
+            length=len(metadata_json),
+            content_type="application/json",
+        )
+
+        # Generate URLs for the uploaded files
+        s3LiveBaseUrl = os.getenv("S3_LIVE_BASE_URL") + s3Bucket
+        generatedImageUrl = f"{s3LiveBaseUrl}/{result_object_key}"
+        metadataUrl = f"{s3LiveBaseUrl}/{metadata_object_key}"
+
     except Exception:
         logger.exception(f"Error generating inference for {imgObjectKey}")
         abort(500, "Error generating inference")

@@ -25,7 +25,7 @@ models = Blueprint("models", __name__, url_prefix="/models")
 # ------- Model Routes -------
 
 
-@models.route('/', methods=['GET'])
+@models.route("/", methods=["GET"])
 @auth_required(["ADMIN", "SUPERADMIN"])
 def getAvailableModels():
     """
@@ -35,41 +35,45 @@ def getAvailableModels():
         # First, try to sync with NN API
         try:
             nn_models_response = nnClient.getAvailableModels()
-            
+
             # Handle different response formats from NN API
             nn_models = []
             if isinstance(nn_models_response, dict):
-                if nn_models_response.get('success') and nn_models_response.get('models'):
-                    nn_models = nn_models_response['models']
-                elif 'models' in nn_models_response:
-                    nn_models = nn_models_response['models']
+                if nn_models_response.get("success") and nn_models_response.get(
+                    "models"
+                ):
+                    nn_models = nn_models_response["models"]
+                elif "models" in nn_models_response:
+                    nn_models = nn_models_response["models"]
             elif isinstance(nn_models_response, list):
                 nn_models = nn_models_response
-            
+
             if nn_models:
                 # Sync models with database
                 for nn_model in nn_models:
-                    model_name = nn_model.get('name')
+                    model_name = nn_model.get("name")
                     if not model_name:
                         continue
-                        
+
                     existing_model = Model.query.filter_by(name=model_name).first()
-                    
+
                     if not existing_model:
                         # Create new model
                         new_model = Model(
                             name=model_name,
-                            version='1.0',
-                            description=nn_model.get('description', f'Model: {model_name}'),
-                            modelType='YOLOv8',  # Default type
+                            version="1.0",
+                            description=nn_model.get(
+                                "description", f"Model: {model_name}"
+                            ),
+                            modelType="YOLOv8",  # Default type
                             createdOn=datetime.utcnow(),
-                            updatedOn=datetime.utcnow()
+                            updatedOn=datetime.utcnow(),
                         )
                         db.session.add(new_model)
-                
+
                 db.session.commit()
                 logger.info(f"Synced {len(nn_models)} models from NN API")
-        
+
         except Exception as sync_error:
             logger.warning(f"Could not sync with NN API: {sync_error}")
             # Continue with database-only models if NN API is unavailable
@@ -79,27 +83,28 @@ def getAvailableModels():
 
         models_list = []
         for model in models_query:
-            created_on = (model.createdOn.isoformat()
-                          if model.createdOn else None)
-            updated_on = (model.updatedOn.isoformat()
-                          if model.updatedOn else None)
-            models_list.append({
-                'id': model.id,
-                'name': model.name,
-                'version': model.version,
-                'description': model.description,
-                'modelType': model.modelType,
-                'createdOn': created_on,
-                'updatedOn': updated_on
-            })
+            created_on = model.createdOn.isoformat() if model.createdOn else None
+            updated_on = model.updatedOn.isoformat() if model.updatedOn else None
+            models_list.append(
+                {
+                    "id": model.id,
+                    "name": model.name,
+                    "version": model.version,
+                    "description": model.description,
+                    "modelType": model.modelType,
+                    "createdOn": created_on,
+                    "updatedOn": updated_on,
+                }
+            )
 
         logger.info(f"Retrieved {len(models_list)} models for user {g.uid}")
 
-        return jsonify({
-            'success': True,
-            'models': models_list,
-            'count': len(models_list)
-        }), 200
+        return (
+            jsonify(
+                {"success": True, "models": models_list, "count": len(models_list)}
+            ),
+            200,
+        )
 
     except Exception as e:
         logger.error(f"Error retrieving models: {str(e)}")
@@ -209,6 +214,43 @@ def trainModel():
 
         # Log audits are done through vite composable
 
+        # Download dataset from S3 and upload to NN API
+        try:
+            # Download dataset from S3/Minio
+            from ..cloudServices.minioConnections import getMinioClient
+
+            minioClient = getMinioClient()
+            datasets_bucket = os.environ.get("S3_BUCKET_DATASET", "datasets")
+
+            logger.info(f"Downloading dataset from S3: {dataset.s3Path}")
+            dataset_response = minioClient.get_object(datasets_bucket, dataset.s3Path)
+            dataset_data = dataset_response.read()
+            dataset_response.close()
+            dataset_response.release_conn()
+
+            # Upload dataset to NN API
+            dataset_filename = dataset.s3Path.split("/")[-1]
+            dataset_upload_response = nnClient.uploadDatasetForTraining(
+                dataset_data, data["datasetId"], model_name, dataset_filename
+            )
+
+            logger.info(f"Dataset uploaded to NN API: {dataset_upload_response}")
+
+        except Exception as dataset_error:
+            # If dataset transfer fails, rollback the model creation
+            db.session.delete(new_model)
+            db.session.commit()
+            logger.error(f"Dataset transfer error: {str(dataset_error)}")
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "Failed to transfer dataset to NN API",
+                    }
+                ),
+                503,
+            )
+
         # Prepare training data for NN API
         flask_api_base_url = os.getenv("FLASK_API_BASE_URL", "http://localhost:5000")
         training_data = {
@@ -216,7 +258,6 @@ def trainModel():
             "modelName": model_name,
             "modelType": data.get("modelType", "YOLOv8_m"),
             "datasetId": data["datasetId"],
-            "datasetPath": dataset.s3Path,
             "trainingParams": {
                 "epochs": epochs,
                 "imageSize": image_size,
