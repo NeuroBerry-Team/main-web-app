@@ -308,10 +308,14 @@ def isLoggedIn():
     return jsonify(responseData), 200
 
 
-@auth.route('/getUserRole', methods=['GET'])
+@auth.route('/getUserInfo', methods=['GET'])
 @auth_required()
-def getRole():
+def getUserInfo():
     responseData = {
+        "id": g.uid,
+        "name": g.user_name,
+        "lastName": g.user_last_name,
+        "email": g.user_email,
         "role": g.role
     }
     return jsonify(responseData), 200

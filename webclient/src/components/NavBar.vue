@@ -78,7 +78,7 @@
       class="nav-btn bg-red-600 text-white hover:bg-red-700 flex items-center gap-2"
     >
       Logout
-      <span v-if="user?.role" class="ml-1 text-xs bg-white/20 px-2 py-1 rounded">{{ user.role }}</span>
+      <span v-if="user?.name" class="ml-1 text-xs bg-white/20 px-2 py-1 rounded">{{ user.name }}</span>
     </button>
 
     <!-- Profile -->

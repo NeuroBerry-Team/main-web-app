@@ -26,7 +26,8 @@
             </span>
           </div>
           <p class="text-lg leading-relaxed max-w-2xl mx-auto opacity-95">
-            Bienvenido al centro de control de tu cuenta NeuroBerry. 
+            <span v-if="user?.name">Bienvenido {{ user.name }} {{ user.lastName }} al</span>
+            <span v-else>Bienvenido al</span> centro de control de tu cuenta NeuroBerry. 
             Desde aquí puedes acceder a todas las funciones disponibles y gestionar tu actividad.
           </p>
         </div>

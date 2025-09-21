@@ -23,8 +23,8 @@
           </p>
           
           <!-- User status -->
-          <div v-if="isLoggedIn && user?.role" class="inline-block break-words bg-green-50 px-3 py-2 sm:px-5 sm:py-3 rounded-lg text-green-700 font-medium text-xs sm:text-sm lg:text-base mt-2 lg:mt-4">
-            Conectado como: <strong>{{ user.role }}</strong>
+          <div v-if="isLoggedIn && user?.name" class="inline-block break-words bg-green-50 px-3 py-2 sm:px-5 sm:py-3 rounded-lg text-green-700 font-medium text-xs sm:text-sm lg:text-base mt-2 lg:mt-4">
+            Conectado como: <strong>{{ user.name }} {{ user.lastName }}</strong>
           </div>
           <div v-else-if="!isLoggedIn" class="inline-block bg-yellow-50 px-3 py-2 sm:px-5 sm:py-3 rounded-lg text-yellow-700 font-medium text-xs sm:text-sm lg:text-base mt-2 lg:mt-4">
             No has iniciado sesión

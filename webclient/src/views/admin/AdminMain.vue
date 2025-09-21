@@ -14,7 +14,7 @@
             <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
               {{ user?.role }}
             </span>
-            <span class="text-sm text-gray-500">{{ user?.name || user?.username }}</span>
+            <span class="text-sm text-gray-500">{{ user?.name }} {{ user?.lastName }}</span>
           </div>
         </div>
       </div>

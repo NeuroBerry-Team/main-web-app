@@ -60,14 +60,21 @@ export function useAuth() {
   // Get user details (role, etc.)
   async function getUserDetails() {
     try {
-      const response = await fetch(`${apiUrl}/auth/getUserRole`, {
+      const response = await fetch(`${apiUrl}/auth/getUserInfo`, {
         method: 'GET',
         credentials: 'include'
       });
 
       if (response.ok) {
         const data = await response.json();
-        user.value = { role: data.role };
+        user.value = {
+          id: data.id,
+          name: data.name,
+          lastName: data.lastName,
+          email: data.email,
+          role: data.role
+        };
+        console.log('User details fetched:', user.value);
       }
     } catch (err) {
       console.error('Error getting user details:', err);
