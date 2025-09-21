@@ -1,12 +1,15 @@
 from flask import Blueprint, request, jsonify, abort, g
 from logs.logger import logger
 from datetime import datetime, timedelta
-from sqlalchemy import func, distinct
+from sqlalchemy import func, distinct, select
 
 from ..models.inference import Inference
 from ..models.user_session import UserSession
+from ..models.user import User
 from ..database.dbConnection import db
 from ..security.decorators_utils import auth_required
+from ..security.input_validation import InputValidator
+from ..security.crypto_utils import hashPassword, checkPasswordHash
 
 
 # Define router prefix
@@ -285,3 +288,152 @@ def get_user_inferences():
             jsonify({"success": False, "error": "Failed to retrieve inferences"}),
             500,
         )
+
+
+@users.route("/update-profile", methods=["PUT"])
+@auth_required()
+def update_profile():
+    """
+    Update user profile information (name, lastName, email)
+    """
+    try:
+        # Validate JSON request and required fields
+        data = InputValidator.validate_json_request(request, ["name", "lastName", "email"])
+
+        # Get current user
+        stmt = select(User).where(User.id == g.uid)
+        result = db.session.execute(statement=stmt)
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            return jsonify({"success": False, "message": "User not found"}), 404
+
+        # Validate fields using InputValidator
+        name = InputValidator.validate_name(data["name"], "Name")
+        last_name = InputValidator.validate_name(data["lastName"], "Last name")
+        email = InputValidator.validate_email_format(data["email"])
+
+        # Check if email is already taken by another user
+        if email != user.email:
+            stmt = select(User).where(User.email == email)
+            result = db.session.execute(statement=stmt)
+            existing_user = result.scalar_one_or_none()
+            
+            if existing_user:
+                return jsonify({"success": False, "message": "Email is already in use"}), 400
+
+        # Update user information
+        user.name = name
+        user.lastName = last_name
+        user.email = email
+        
+        db.session.commit()
+        
+        logger.info(f"User {g.uid} updated their profile information")
+        
+        return jsonify({
+            "success": True,
+            "message": "Profile updated successfully",
+            "user": {
+                "id": user.id,
+                "name": user.name,
+                "lastName": user.lastName,
+                "email": user.email,
+                "role": user.role.name
+            }
+        }), 200
+
+    except Exception as e:
+        logger.exception(f"Error updating profile for user {g.uid}: {str(e)}")
+        db.session.rollback()
+        return jsonify({"success": False, "message": "Internal server error"}), 500
+
+
+@users.route("/change-password", methods=["PUT"])
+@auth_required()
+def change_password():
+    """
+    Change user password with current password verification
+    """
+    try:
+        # Validate JSON request and required fields
+        data = InputValidator.validate_json_request(request, ["currentPassword", "newPassword"])
+        
+        current_password = data["currentPassword"]
+        new_password = data["newPassword"]
+
+        # Get current user
+        stmt = select(User).where(User.id == g.uid)
+        result = db.session.execute(statement=stmt)
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            return jsonify({"success": False, "message": "User not found"}), 404
+
+        # Verify current password
+        if not checkPasswordHash(user.password, current_password):
+            return jsonify({"success": False, "message": "Current password is incorrect"}), 400
+
+        # Validate new password using InputValidator
+        new_password = InputValidator.validate_password(new_password)
+
+        # Update password
+        user.password = hashPassword(new_password)
+        db.session.commit()
+        
+        logger.info(f"User {g.uid} changed their password")
+        
+        return jsonify({
+            "success": True,
+            "message": "Password changed successfully"
+        }), 200
+
+    except Exception as e:
+        logger.exception(f"Error changing password for user {g.uid}: {str(e)}")
+        db.session.rollback()
+        return jsonify({"success": False, "message": "Internal server error"}), 500
+
+
+@users.route("/delete-account", methods=["DELETE"])
+@auth_required()
+def delete_account():
+    """
+    Delete user account permanently
+    """
+    try:
+        # Get current user
+        stmt = select(User).where(User.id == g.uid)
+        result = db.session.execute(statement=stmt)
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            return jsonify({"success": False, "message": "User not found"}), 404
+
+        # Prevent deletion of SUPERADMIN accounts
+        if user.role.name == 'SUPERADMIN':
+            return jsonify({
+                "success": False,
+                "message": "SUPERADMIN accounts cannot be deleted"
+            }), 403
+
+        user_id = user.id
+        user_email = user.email
+        
+        # Close all user sessions first
+        UserSession.close_all_sessions(user_id)
+        
+        # Delete the user (this will cascade delete related records due to foreign key constraints)
+        db.session.delete(user)
+        db.session.commit()
+        
+        logger.info(f"User account {user_email} (ID: {user_id}) was permanently deleted")
+        
+        return jsonify({
+            "success": True,
+            "message": "Account deleted successfully"
+        }), 200
+
+    except Exception as e:
+        logger.exception(f"Error deleting account for user {g.uid}: {str(e)}")
+        db.session.rollback()
+        return jsonify({"success": False, "message": "Internal server error"}), 500

@@ -74,7 +74,6 @@ export function useAuth() {
           email: data.email,
           role: data.role
         };
-        console.log('User details fetched:', user.value);
       }
     } catch (err) {
       console.error('Error getting user details:', err);

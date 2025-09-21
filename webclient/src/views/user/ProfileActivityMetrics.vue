@@ -1,4 +1,5 @@
 <template>
+  <!-- TODO: Finish metrics view -->
   <Teleport to="body">
     <div class="modal-overlay">
       <div class="modal-container">

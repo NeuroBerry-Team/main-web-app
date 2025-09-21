@@ -40,15 +40,15 @@ const router = createRouter({
       ]
     },
     {
+      path: '/profile/settings',
+      name: 'ProfileSettings',
+      component: () => import('../views/user/ProfileSettings.vue')
+    },
+    {
       path: '/profile',
       name: 'Profile',
       component: () => import('../views/user/Profile.vue'),
       children:[
-        {
-          path: 'settings',
-          name: 'ProfileSettings',
-          component: () => import('../views/user/ProfileSettings.vue')
-        },
         {
           path: 'activity', // General user activity. Holds a summary of it all.
           name: 'ProfileActivity',
