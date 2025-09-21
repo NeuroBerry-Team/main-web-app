@@ -24,7 +24,8 @@ const toastOptions = {
   icon: true,
   rtl: false,
   maxToasts: 5,
-  newestOnTop: true
+  newestOnTop: true,
+  position: "top-left"
 }
 
 app.use(createPinia())

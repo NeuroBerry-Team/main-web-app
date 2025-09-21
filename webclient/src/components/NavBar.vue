@@ -96,8 +96,10 @@
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { RouterLink } from "vue-router";
 import { useAuth } from "../composables/use_auth.js";
+import { useToast } from "vue-toastification";
 
 const { isLoggedIn, user, isAdmin, logout } = useAuth();
+const toast = useToast();
 const menuOpen = ref(false);
 const scrolled = ref(false);
 
@@ -114,9 +116,30 @@ function handleScroll() {
 
 const showMenu = computed(() => isDesktop.value || menuOpen.value);
 
+let logoutTimeout = null;
+let logoutConfirmPending = false;
+
 const handleLogout = async () => {
-  if (confirm("Are you sure you want to logout?")) {
+  if (logoutConfirmPending) {
+    // Second click - confirm logout
+    clearTimeout(logoutTimeout);
+    logoutConfirmPending = false;
     await logout();
+    toast.success("Sesión cerrada correctamente");
+  } else {
+    // First click - show confirmation
+    logoutConfirmPending = true;
+    toast.warning("Haz clic en 'Cerrar Sesión' otra vez para confirmar", {
+      timeout: 4000,
+      onClose: () => {
+        logoutConfirmPending = false;
+      }
+    });
+    
+    // Auto-cancel after 4 seconds
+    logoutTimeout = setTimeout(() => {
+      logoutConfirmPending = false;
+    }, 4000);
   }
   menuOpen.value = false;
 };

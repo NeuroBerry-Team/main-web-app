@@ -423,9 +423,13 @@ import { useAuth } from '../../composables/use_auth.js'
 import { useInference } from '../../composables/send_inference.js'
 import { useMinioMetadata } from '../../composables/use_minio_metadata.js'
 import { useModels } from '../../composables/use_models.js'
+import { useToast } from "vue-toastification"
 
 // Authentication
 const { isLoggedIn, user, loading: authLoading, checkAuthStatus } = useAuth()
+
+// Toast notifications
+const toast = useToast()
 
 // File handling
 const fileInput = ref(null)
@@ -594,7 +598,7 @@ function onFileChange(event) {
     previewImage.value = URL.createObjectURL(file)
     selectedFile.value = file
   } else if (file) {
-    alert('Por favor selecciona un archivo de imagen válido (JPG, PNG, WebP)')
+    toast.error('Por favor selecciona un archivo de imagen válido (JPG, PNG, WebP)')
   }
 }
 
@@ -608,17 +612,17 @@ function resetImage() {
 
 async function startInference() {
   if (!selectedFile.value) {
-    alert('Por favor selecciona una imagen primero')
+    toast.error('Por favor selecciona una imagen primero')
     return
   }
   
   if (!isLoggedIn.value) {
-    alert('Debes iniciar sesión para usar esta funcionalidad')
+    toast.error('Debes iniciar sesión para usar esta funcionalidad')
     return
   }
 
   if (!selectedModel.value) {
-    alert('Por favor selecciona un modelo primero')
+    toast.error('Por favor selecciona un modelo primero')
     return
   }
 
@@ -1612,7 +1616,7 @@ const getColorForClass = (className) => {
 const downloadResults = async () => {
   if (!result.value?.id) {
     console.error('No inference ID available for download')
-    alert('No hay resultados disponibles para descargar')
+    toast.error('No hay resultados disponibles para descargar')
     return
   }
   
@@ -1700,7 +1704,7 @@ const downloadResults = async () => {
       window.URL.revokeObjectURL(url)
     }, 100)
     
-    alert('Descarga iniciada correctamente. El archivo se guardará en tu carpeta de descargas.')
+    toast.success('Descarga iniciada correctamente. El archivo se guardará en tu carpeta de descargas.')
     
   } catch (error) {
     let errorMessage = 'Error al descargar los resultados.'
@@ -1714,7 +1718,7 @@ const downloadResults = async () => {
       errorMessage += ` Detalles: ${error.message}`
     }
     
-    alert(errorMessage)
+    toast.error(errorMessage)
     
   } finally {
     // Restore button state

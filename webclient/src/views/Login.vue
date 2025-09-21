@@ -263,9 +263,11 @@
 <script setup>
 import { ref } from 'vue'
 import { useCSRF } from '../composables/use_csrf.js'
+import { useToast } from "vue-toastification"
 
 const APIurl = import.meta.env.VITE_API_BASE_URL
 const { makeSecureRequest } = useCSRF()
+const toast = useToast()
 
 const activeTab = ref('login')
 
@@ -389,7 +391,7 @@ const handleRegister = async () => {
       registerConfirm.value = ''
       
       // Show success message and switch to login
-      alert(data.message || '¡Registro exitoso! Por favor inicia sesión.')
+      toast.success(data.message || '¡Registro exitoso! Por favor inicia sesión.')
       activeTab.value = 'login'
       
     } else {
