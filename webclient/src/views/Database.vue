@@ -5,7 +5,7 @@
       <img src="/NeuroBerry_horizontal.png" alt="NeuroBerry Logo" class="logo-image" />
     </div>
 
-    <section class="hero-section">
+    <section class="hero-section animated-section">
       <h1 class="section-title">Nuestra Base de Datos</h1>
       <p class="justify-text">
         Hemos recolectado un total de <strong>3000 imágenes de frambuesas</strong>, capturadas en condiciones reales de cultivo: 
@@ -16,7 +16,7 @@
       </p>
     </section>
 
-    <section class="research-section">
+    <section class="research-section animated-section" style="animation-delay: 0.2s;">
       <h2 class="section-title">Ejemplo de galería</h2>
       <div class="gallery">
         <div 
@@ -37,7 +37,7 @@
       </div>
     </section>
 
-    <section class="reference-section">
+    <section class="reference-section animated-section" style="animation-delay: 0.4s;">
       <h2 class="section-title">Ejemplo de Etiquetado</h2>
       <img src="/data/database1.jpeg" alt="Ejemplo etiquetado" class="reference-image" />
 
@@ -104,21 +104,30 @@ const closePreview = () => {
 
 .logo-wrapper {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 2rem;
   margin-bottom: 1rem;
 }
 
 .logo-image {
-  max-width: 400px;
+  max-width: 500px;
   width: 90%;
   height: auto;
-  border-radius: 10px;
+  animation: fadeInUp 0.8s ease-out;
 }
 
 section {
   display: flex;
   flex-direction: column;
   gap: 2rem;
+}
+
+/* --- Estilos para la animación --- */
+.animated-section {
+  opacity: 0; /* Empieza invisible */
+  animation: fadeInUp 0.8s ease-out forwards; /* 'forwards' mantiene el estado final */
 }
 
 .section-title {
@@ -155,7 +164,21 @@ section {
   font-size: 1rem;
   color: #888;
   cursor: pointer;
+  
+  /* Animación para cada item */
+  opacity: 0;
+  animation: fadeInUp 0.5s ease-out forwards;
 }
+
+/* --- Retraso en cascada para los items de la galería --- */
+.gallery-item:nth-child(1) { animation-delay: 0.1s; }
+.gallery-item:nth-child(2) { animation-delay: 0.2s; }
+.gallery-item:nth-child(3) { animation-delay: 0.3s; }
+.gallery-item:nth-child(4) { animation-delay: 0.4s; }
+.gallery-item:nth-child(5) { animation-delay: 0.5s; }
+.gallery-item:nth-child(6) { animation-delay: 0.6s; }
+/* ... puedes continuar para el resto si lo deseas */
+
 
 .gallery-item:hover {
   transform: translateY(-5px);
@@ -230,9 +253,16 @@ section {
   border-radius: 12px;
 }
 
+/* Keyframes para la animación de entrada */
 @keyframes fadeInUp {
-  0% { opacity: 0; transform: translateY(20px); }
-  100% { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @media (max-width: 768px) {

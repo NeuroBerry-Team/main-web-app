@@ -13,15 +13,36 @@ const router = createRouter({
       name: 'about',
       component: () => import('../views/AboutView.vue'),
     },
-    { path: '/etiquetado',
+    { 
+      path: '/etiquetado',
       name: 'Etiquetado',
-      component: () => import('../views/Etiquetado.vue') },
-    { path: '/database',
+      component: () => import('../views/Etiquetado.vue') 
+    },
+    { 
+      path: '/database',
       name: 'Database',
-      component: () => import('../views/Database.vue') },
-    { path: '/login',
+      component: () => import('../views/Database.vue') 
+    },
+    { 
+      path: '/login',
       name: 'Login',
-      component: () => import('../views/Login.vue') },
+      component: () => import('../views/Login.vue') 
+    },
+    { 
+      path: '/modulo1',
+      name: 'Modulo1',
+      component: () => import('../views/Modulos/Modulo1.vue') 
+    },
+    { 
+      path: '/modulo2',
+      name: 'Modulo2',
+      component: () => import('../views/Modulos/Modulo2.vue') 
+    },
+    { 
+      path: '/modulo3',
+      name: 'Modulo3',
+      component: () => import('../views/Modulos/Modulo3.vue') 
+    },
     { 
       path: '/AI',
       name: 'AI',
@@ -50,7 +71,7 @@ const router = createRouter({
       component: () => import('../views/user/Profile.vue'),
       children:[
         {
-          path: 'activity', // General user activity. Holds a summary of it all.
+          path: 'activity',
           name: 'ProfileActivity',
           component: () => import('../views/user/ProfileActivity.vue'),
           children:[

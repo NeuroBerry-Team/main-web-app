@@ -5,18 +5,18 @@
       <img src="/NeuroBerry_horizontal.png" alt="NeuroBerry Logo" class="logo-image" />
     </div>
 
-    <section class="hero-section">
+    <section class="hero-section animated-section">
       <h1 class="section-title">Etiquetado Demo</h1>
-      <p class="justify-text big-paragraph">
+      <p class="hero-text">
         Esta demostración simula el proceso de etiquetado de frambuesas para entrenar la IA. Puedes seleccionar una etiqueta y dibujar un cuadro sobre la imagen para ver cómo se haría en la práctica.
       </p>
     </section>
 
-    <section class="tagging-demo">
+    <section class="tagging-demo animated-section" style="animation-delay: 0.2s;">
       <h2 class="section-title">Generación de la Base de Datos</h2>
 
-      <div class="classes-container">
-        <div v-for="label in labels" :key="label.name" class="class-item">
+      <div class="classes-description-container">
+        <div v-for="(label, index) in labels" :key="label.name" class="class-item animated-item" :style="{ 'animation-delay': (0.3 + index * 0.1) + 's' }">
           <div class="color-box" :style="{backgroundColor: label.color}"></div>
           <p class="class-text">
             <strong>{{ label.name }}</strong>: {{ label.description }}
@@ -24,47 +24,51 @@
         </div>
       </div>
 
-      <div class="demo-container" ref="imageContainer">
-        <img 
-          ref="demoImage" 
-          src="/etiquetado_1.jpg" 
-          alt="Frambuesa Ejemplo" 
-          class="demo-image"
-          @click="createBox($event)"
-        />
+      <div class="demo-image-wrapper">
+        <div class="demo-container" ref="imageContainer">
+          <img 
+            ref="demoImage" 
+            src="/etiquetado_1.jpg" 
+            alt="Frambuesa Ejemplo" 
+            class="demo-image"
+            @click="createBox($event)"
+          />
 
-        <div class="tag-buttons">
-          <button 
-            v-for="label in labels" 
-            :key="label.name" 
-            :style="{backgroundColor: label.color}" 
-            @click="selectLabel(label.name)"
+          <div 
+            v-for="(box, index) in boxes" 
+            :key="index" 
+            class="tag-box animated-tag-box" 
+            :style="{top: box.top + 'px', left: box.left + 'px', borderColor: box.color, animationDelay: (0.1 * index) + 's'}"
           >
-            {{ label.name }}
-          </button>
+            {{ box.label }}
+          </div>
         </div>
 
-        <p v-if="selectedLabel" class="selected-message">
-          <br>Etiqueta seleccionada: <strong>{{ selectedLabel }}</strong><br></br>
-        </p>
+        <div class="tag-controls">
+          <div class="tag-buttons animated-item" style="animation-delay: 0.8s;">
+            <button 
+              v-for="label in labels" 
+              :key="label.name" 
+              :style="{backgroundColor: label.color, outline: selectedLabel === label.name ? '3px solid #333' : 'none'}" 
+              @click="selectLabel(label.name)"
+            >
+              {{ label.name }}
+            </button>
+          </div>
 
-        <div 
-          v-for="(box, index) in boxes" 
-          :key="index" 
-          class="tag-box" 
-          :style="{top: box.top + 'px', left: box.left + 'px', borderColor: box.color}"
-        >
-          {{ box.label }}
+          <p v-if="selectedLabel" class="selected-message animated-item" style="animation-delay: 0.9s;">
+            Etiqueta seleccionada: <strong>{{ selectedLabel }}</strong>
+          </p>
         </div>
       </div>
     </section>
 
-    <section class="examples-section">
+    <section class="examples-section animated-section" style="animation-delay: 0.6s;">
       <h2 class="section-title">Ejemplos Explicativos</h2>
 
-      <div class="examples-container">
-        <div v-for="(example, index) in examples" :key="index" class="example-item">
-          <img :src="example.image" alt="Ejemplo Imagen" class="example-image" />
+      <div class="examples-grid">
+        <div v-for="(example, index) in examples" :key="index" class="example-item animated-item" :style="{ 'animation-delay': (0.7 + index * 0.1) + 's' }">
+          <img :src="example.image" :alt="example.title" class="example-image" />
           <div class="example-text">
             <h3>{{ example.title }}</h3>
             <p>{{ example.description }}</p>
@@ -87,7 +91,7 @@ const labels = [
   { name: 'Cherry Red', color: '#FF4D4D', description: 'Frambuesa de color rojo cereza, lista para consumo.' },
   { name: 'Orange Dot', color: '#FFA500', description: 'Frambuesa con puntos naranjas o rojos, en transición de maduración.' },
   { name: 'Green', color: '#ADFF2F', description: 'Frambuesa verde amarillosa, aún inmadura.' },
-  { name: 'Button', color: '#008000', description: 'Marcador especial para referencia o prueba.' }
+  { name: 'Button', color: '#008000', description: 'Botón de referencia o para el inicio de la fruta.' }
 ]
 
 const selectedLabel = ref('')
@@ -100,10 +104,12 @@ function selectLabel(label) {
 function createBox(event) {
   if (!selectedLabel.value) return
 
-  const containerRect = imageContainer.value.getBoundingClientRect()
+  const imageRect = demoImage.value.getBoundingClientRect();
+  const scaleX = demoImage.value.naturalWidth / imageRect.width;
+  const scaleY = demoImage.value.naturalHeight / imageRect.height;
 
-  const top = event.clientY - containerRect.top
-  const left = event.clientX - containerRect.left
+  const top = event.clientY - imageRect.top;
+  const left = event.clientX - imageRect.left;
 
   const color = labels.find(l => l.name === selectedLabel.value)?.color || '#000'
 
@@ -116,11 +122,11 @@ function createBox(event) {
 }
 
 const examples = [
-  { image: 'fram/fram2.png', title: 'Frambuesa muy roja', description: 'Frambuesa muy roja, en su punto máximo de maduración.' },
-  { image: 'fram/fram1.png', title: 'Frambuesa Roja', description: 'Frambuesa roja, lista para consumo.' },
-  { image: 'fram/fram3.png', title: 'Frambuesa con punto rojo', description: 'Frambuesa con puntos naranjas o rojos, en transición de maduración.' },
-  { image: 'fram/fram4.png', title: 'Frambuesa verde', description: 'Frambuesa verde, aún inmadura.' },
-  { image: 'fram/fram5.png', title: 'Botón', description: 'Botón de referencia.' }
+  { image: '/fram/fram2.png', title: 'Frambuesa Muy Roja', description: 'Frambuesa con tonalidad roja oscura, indicando plena madurez.' },
+  { image: '/fram/fram1.png', title: 'Frambuesa Cherry Red', description: 'Tono rojo brillante, ideal para la cosecha y el consumo inmediato.' },
+  { image: '/fram/fram3.png', title: 'Frambuesa Orange Dot', description: 'Presenta manchas naranjas o un color general anaranjado, en proceso de maduración.' },
+  { image: '/fram/fram4.png', title: 'Frambuesa Verde', description: 'Color verde pálido a amarillento, aún no apta para la cosecha.' },
+  { image: '/fram/fram5.png', title: 'Botón de Frambuesa', description: 'Fase inicial del fruto, pequeño y de color verde intenso.' }
 ]
 </script>
 
@@ -137,181 +143,288 @@ const examples = [
   flex-direction: column;
   gap: 4rem;
   text-align: center;
+  background-color: #fff;
 }
 
 .logo-wrapper {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 2rem;
   margin-bottom: 1rem;
 }
 
 .logo-image {
-  max-width: 400px;
+  max-width: 500px;
   width: 90%;
   height: auto;
-  border-radius: 10px;
+  animation: fadeInUp 0.8s ease-out;
 }
 
 section {
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  text-align: center;
+}
+
+/* --- Animaciones generales --- */
+.animated-section, .animated-item {
+  opacity: 0;
+  animation: fadeInUp 0.8s ease-out forwards;
 }
 
 .section-title {
-  font-size: 2rem;
+  font-size: 2.5rem; /* Títulos más grandes */
   font-weight: 800;
   color: #b22222;
+  margin-bottom: 1rem;
 }
 
-.justify-text {
-  text-align: justify;
-}
-
-.big-paragraph {
-  font-size: 1.1rem;
+.hero-text {
+  max-width: 900px;
+  margin: 0 auto;
+  text-align: center;
+  font-size: 1.2rem;
   line-height: 1.8;
+  color: #555;
 }
 
-.classes-container {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin: 1rem 0;
-  align-items: flex-start;
+/* --- Contenedor de descripciones de clases --- */
+.classes-description-container {
+  display: grid; /* Usar grid para mejor distribución */
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* 2 columnas o más si hay espacio */
+  gap: 1.5rem;
+  margin: 1rem auto 3rem auto; /* Más espacio abajo */
+  max-width: 900px;
 }
 
 .class-item {
   display: flex;
   align-items: center;
   gap: 1rem;
+  text-align: left;
+  background-color: #f9f9f9;
+  padding: 1rem;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  border: 1px solid #eee;
 }
 
 .color-box {
-  width: 30px;
+  min-width: 30px; /* Ancho fijo */
   height: 30px;
   border-radius: 6px;
-  border: 2px solid #333;
+  border: 2px solid rgba(0,0,0,0.1); /* Borde más suave */
 }
 
 .class-text {
   font-size: 1rem;
-  text-align: left;
+  line-height: 1.5;
+  margin: 0; /* Eliminar margen predeterminado */
 }
 
+/* --- Contenedor de la demo de etiquetado --- */
 .tagging-demo {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 2.5rem; /* Más espacio entre elementos */
   align-items: center;
+}
+
+.demo-image-wrapper {
+  background-color: #fff;
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1); /* Sombra más grande */
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  max-width: 700px; /* Controlar el ancho máximo del wrapper */
+  width: 95%;
 }
 
 .demo-container {
   position: relative;
-  display: inline-block;
-  width: 600px;
-  height: 400px;
+  width: 100%; /* Ocupa el 100% del wrapper */
+  padding-bottom: 66.66%; /* Proporción 3:2 (altura / ancho) */
+  height: 0;
+  overflow: hidden;
+  border-radius: 10px;
 }
 
 .demo-image {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
   border-radius: 10px;
   cursor: crosshair;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.tag-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
 }
 
 .tag-buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.8rem; /* Más espacio entre botones */
   justify-content: center;
 }
 
 .tag-buttons button {
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
+  padding: 0.7rem 1.4rem; /* Más padding */
+  border-radius: 25px; /* Forma de píldora */
   color: white;
   border: none;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.1); /* Sombra para los botones */
 }
 
 .tag-buttons button:hover {
-  transform: scale(1.05);
+  transform: translateY(-3px) scale(1.02); /* Animación más notoria */
+  box-shadow: 0 6px 15px rgba(0,0,0,0.15);
 }
 
 .selected-message {
-  font-size: 1rem;
+  font-size: 1.1rem; /* Tamaño de fuente ajustado */
   color: #b22222;
   font-weight: 700;
+  margin-top: 0.5rem; /* Espacio superior */
 }
 
 .tag-box {
   position: absolute;
-  width: 60px;
+  min-width: 60px; /* Ancho mínimo */
   height: 30px;
   border: 2px solid;
   border-radius: 5px;
   display: flex;
   justify-content: center;
   align-items: center;
-  font-size: 0.8rem;
+  font-size: 0.85rem; /* Tamaño de fuente ligeramente mayor */
   font-weight: 700;
-  background-color: rgba(255,255,255,0.3);
+  color: white; /* Color de texto blanco para contraste */
+  text-shadow: 0 0 3px rgba(0,0,0,0.5); /* Sombra para el texto */
+  background-color: rgba(0,0,0,0.4); /* Fondo más oscuro */
+  padding: 0 5px; /* Padding interno */
+  animation: fadeIn 0.3s ease-out; /* Animación de entrada para las cajas */
 }
 
-.examples-container {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  align-items: flex-start;
+.animated-tag-box {
+  opacity: 0;
+  animation: fadeInScale 0.3s ease-out forwards;
+}
+
+/* --- Sección de Ejemplos Explicativos --- */
+.examples-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Cuadrícula adaptable */
+  gap: 2rem; /* Espacio entre ejemplos */
+  margin-top: 1rem;
 }
 
 .example-item {
   display: flex;
+  flex-direction: column; /* Apilar elementos verticalmente */
   gap: 1rem;
   align-items: center;
-  text-align: left;
+  text-align: center;
+  background-color: #fff;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.example-item:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.12);
 }
 
 .example-image {
-  width: 150px;
-  height: 100px;
+  width: 100%; /* Ocupa el 100% del item */
+  max-width: 300px; /* Máximo ancho de imagen */
+  height: 200px; /* Altura fija */
   object-fit: cover;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .example-text h3 {
-  margin: 0 0 0.3rem 0;
-  font-size: 1.1rem;
+  margin: 0 0 0.5rem 0; /* Más espacio debajo del título */
+  font-size: 1.3rem;
   color: #b22222;
 }
 
 .example-text p {
   margin: 0;
-  font-size: 0.95rem;
-  line-height: 1.5;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #666;
 }
 
-@media (max-width: 768px) {
-  .demo-container {
-    width: 90%;
-    height: 300px; 
+/* --- Animaciones Keyframes --- */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
   }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
-  .example-item {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
   }
-  
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* --- Media Queries para Responsividad --- */
+@media (max-width: 768px) {
+  .hero-text {
+    font-size: 1rem;
+  }
+  .classes-description-container {
+    grid-template-columns: 1fr; /* Una columna en móvil */
+  }
+  .demo-image-wrapper {
+    padding: 1rem;
+  }
+  .tag-buttons {
+    gap: 0.5rem;
+  }
+  .tag-buttons button {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+  }
+  .examples-grid {
+    grid-template-columns: 1fr; /* Una columna en móvil */
+  }
   .example-image {
     width: 90%;
     height: auto;
+  }
+  .example-item {
+    padding: 1rem;
   }
 }
 </style>

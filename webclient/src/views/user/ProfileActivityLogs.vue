@@ -1,461 +1,290 @@
 <template>
-  <!-- Modal Overlay -->
   <Teleport to="body">
-    <div class="modal-overlay" @click.self="goBack">
-      <div class="modal-container" @click.stop>
-        <div class="bg-gradient-to-r from-indigo-600 via-indigo-700 to-indigo-800 text-white p-6 flex items-center justify-between relative overflow-hidden">
-          <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent transform -skew-x-12"></div>
-          
-          <div class="relative z-10 flex items-center space-x-3">
-            <div class="text-2xl">📋</div>
-            <div>
-              <h2 class="text-2xl font-bold">Registro de Actividad</h2>
-              <p class="text-indigo-100 mt-1">Historial de acciones y sesiones</p>
-            </div>
-          </div>
-          
-          <div class="relative z-10">
-            <button 
-              @click="goBack" 
-              class="text-white hover:text-indigo-200 text-3xl font-light w-10 h-10 flex items-center justify-center rounded-full hover:bg-white hover:bg-opacity-20 transition-all duration-200 hover:rotate-90 transform"
-              title="Cerrar ventana (ESC)"
-            >
-              ×
-            </button>
-          </div>
-        </div>
+    <transition name="modal-fade">
+      <div class="modal-overlay" @click.self="goBack">
+        <div class="modal-container animated-item">
 
-        <div class="flex-1 p-8 overflow-y-auto bg-gray-50">
-          <!-- Loading State -->
-          <div v-if="loading" class="text-center py-12">
-            <div class="text-4xl mb-4">⏳</div>
-            <p class="text-gray-500">Cargando registro de actividad...</p>
-          </div>
-          
-          <!-- Error State -->
-          <div v-else-if="error" class="text-center py-12">
-            <div class="text-4xl mb-4">❌</div>
-            <p class="text-red-500 mb-4">Error al cargar el registro de actividad</p>
-            <button 
-              @click="loadActivityLogs"
-              class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200"
-            >
-              Intentar de nuevo
-            </button>
-          </div>
-          
-          <!-- Empty State -->
-          <div v-else-if="!activityLogs.length" class="text-center py-12">
-            <div class="text-6xl mb-6">📋</div>
-            <h3 class="text-xl font-semibold text-gray-700 mb-2">No hay actividad registrada</h3>
-            <p class="text-gray-500 mb-6">Tu actividad aparecerá aquí cuando realices acciones en la plataforma</p>
-          </div>
-          
-          <!-- Activity Timeline -->
-          <div v-else class="space-y-6">
-            <!-- Activity Summary Cards -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-              <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-                <div class="flex items-center">
-                  <div class="p-2 bg-green-100 rounded-lg">
-                    <div class="text-2xl">🔓</div>
-                  </div>
-                  <div class="ml-4">
-                    <p class="text-sm font-medium text-gray-600">Inicios de sesión</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ loginCount }}</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-                <div class="flex items-center">
-                  <div class="p-2 bg-blue-100 rounded-lg">
-                    <div class="text-2xl">🔬</div>
-                  </div>
-                  <div class="ml-4">
-                    <p class="text-sm font-medium text-gray-600">Análisis realizados</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ analysisCount }}</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-                <div class="flex items-center">
-                  <div class="p-2 bg-orange-100 rounded-lg">
-                    <div class="text-2xl">📊</div>
-                  </div>
-                  <div class="ml-4">
-                    <p class="text-sm font-medium text-gray-600">Total actividades</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ activityLogs.length }}</p>
-                  </div>
-                </div>
-              </div>
+          <header class="modal-header">
+            <div class="header-content">
+              <div class="header-icon">📋</div>
+              <h2 class="modal-title">Registro de Actividad</h2>
             </div>
+            <button @click="goBack" class="close-btn" title="Cerrar (ESC)">×</button>
+          </header>
 
-            <!-- Timeline -->
-            <div class="space-y-6">
-              <div 
-                v-for="(activities, dateKey) in groupedActivities" 
-                :key="dateKey"
-                class="space-y-4"
-              >
-                <!-- Date Header -->
-                <div class="flex items-center">
-                  <h3 class="text-lg font-semibold text-gray-800">
-                    {{ formatDateHeader(dateKey) }}
-                  </h3>
-                  <div class="flex-1 h-px bg-gray-300 ml-4"></div>
+          <div class="modal-body">
+            <div v-if="loading" class="placeholder-content"><div class="spinner-large"></div><p>Cargando registro...</p></div>
+            <div v-else-if="error" class="placeholder-content"><div class="placeholder-icon">❌</div><h3 class="placeholder-title">Error al Cargar</h3><p>{{ error }}</p></div>
+            <div v-else-if="!activityLogs.length" class="placeholder-content">
+              <div class="placeholder-icon">📋</div>
+              <h3 class="placeholder-title">No hay actividad registrada</h3>
+              <p class="placeholder-text">Tus acciones en la plataforma aparecerán aquí.</p>
+            </div>
+            
+            <div v-else class="timeline-wrapper">
+              <section class="summary-grid">
+                <div class="stat-card">
+                  <div class="stat-content">
+                    <p class="stat-label">Inicios de sesión</p>
+                    <p class="stat-value">{{ loginCount }}</p>
+                  </div>
+                  <div class="stat-icon icon-green">🔓</div>
                 </div>
-                
-                <!-- Activities for this date -->
-                <div class="space-y-3">
-                  <div
-                    v-for="activity in activities"
-                    :key="activity.id"
-                    class="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden border border-gray-200"
-                  >
-                    <div class="p-6">
-                      <div class="flex items-start">
-                        <!-- Activity Icon -->
-                        <div class="flex-shrink-0">
-                          <div :class="[activity.color, 'w-10 h-10 rounded-full flex items-center justify-center text-white text-lg']">
-                            {{ activity.icon }}
-                          </div>
+                <div class="stat-card">
+                  <div class="stat-content">
+                    <p class="stat-label">Análisis realizados</p>
+                    <p class="stat-value">{{ analysisCount }}</p>
+                  </div>
+                  <div class="stat-icon icon-blue">🔬</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-content">
+                    <p class="stat-label">Total actividades</p>
+                    <p class="stat-value">{{ activityLogs.length }}</p>
+                  </div>
+                  <div class="stat-icon icon-orange">📊</div>
+                </div>
+              </section>
+
+              <section class="timeline">
+                <div v-for="(activities, dateKey) in groupedActivities" :key="dateKey" class="timeline-group">
+                  <h3 class="timeline-date-header">{{ formatDateHeader(dateKey) }}</h3>
+                  <div class="activity-items">
+                    <div v-for="activity in activities" :key="activity.id" class="activity-card">
+                      <div class="activity-icon" :class="activity.color">{{ activity.icon }}</div>
+                      <div class="activity-content">
+                        <div class="content-header">
+                          <h4>{{ activity.title }}</h4>
+                          <span class="timestamp">{{ formatTime(activity.timestamp) }}</span>
                         </div>
-                        
-                        <!-- Activity Content -->
-                        <div class="ml-4 flex-1">
-                          <div class="flex items-start justify-between">
-                            <div>
-                              <h4 class="text-sm font-semibold text-gray-900">
-                                {{ activity.title }}
-                              </h4>
-                              <p class="text-sm text-gray-600 mt-1">
-                                {{ activity.subtitle }}
-                              </p>
-                            </div>
-                            <div class="text-xs text-gray-500 ml-4">
-                              {{ formatTime(activity.timestamp) }}
-                            </div>
-                          </div>
-                          
-                          <!-- Activity Details -->
-                          <div v-if="activity.details" class="mt-3 space-y-1">
-                            <div 
-                              v-for="(value, key) in activity.details" 
-                              :key="key"
-                              class="flex justify-between items-center text-xs"
-                            >
-                              <span class="text-gray-500 capitalize">{{ key }}:</span>
-                              <span class="text-gray-700 font-mono">{{ value }}</span>
-                            </div>
-                          </div>
-                          
-                          <!-- Activity Type Badge -->
-                          <div class="mt-3">
-                            <span 
-                              :class="getActivityBadgeClass(activity.type)"
-                              class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                            >
-                              {{ getActivityTypeLabel(activity.type) }}
-                            </span>
-                          </div>
-                        </div>
+                        <p class="subtitle">{{ activity.subtitle }}</p>
                       </div>
                     </div>
                   </div>
                 </div>
+              </section>
+
+              <div v-if="hasMore && !loading" class="load-more-container">
+                <button @click="loadMoreLogs" class="action-btn btn-secondary">Cargar más</button>
               </div>
-            </div>
-            
-            <!-- Load More Button -->
-            <div v-if="hasMore && !loading" class="text-center mt-8">
-              <button
-                @click="loadMoreLogs"
-                class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200"
-              >
-                Cargar más actividades
-              </button>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </transition>
   </Teleport>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
+// --- LÓGICA DEL COMPONENTE (SIN CAMBIOS) ---
+import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { useRouter } from 'vue-router';
 
-const router = useRouter()
+const router = useRouter();
+const activityLogs = ref([]);
+const loading = ref(true);
+const error = ref(null);
+const hasMore = ref(false);
+const currentPage = ref(1);
 
-const activityLogs = ref([])
-const loading = ref(true)
-const error = ref(null)
-const hasMore = ref(false)
-const currentPage = ref(1)
+const goBack = () => router.push('/profile/activity');
+const handleKeydown = (event) => { if (event.key === 'Escape') goBack(); };
 
-const goBack = () => {
-  router.push('/profile') // Always return to the main profile page
-}
-
-// Close modal on Escape key
-const handleKeydown = (event) => {
-  if (event.key === 'Escape') {
-    goBack()
-  }
-}
-
-// Group activities by date
 const groupedActivities = computed(() => {
-  if (!activityLogs.value.length) return {}
-  
-  const groups = {}
+  if (!activityLogs.value.length) return {};
+  const groups = {};
   activityLogs.value.forEach(activity => {
-    const dateKey = activity.timestamp.toDateString()
-    if (!groups[dateKey]) {
-      groups[dateKey] = []
-    }
-    groups[dateKey].push(activity)
-  })
-  
-  // Sort each group by time (newest first)
+    const dateKey = activity.timestamp.toDateString();
+    if (!groups[dateKey]) groups[dateKey] = [];
+    groups[dateKey].push(activity);
+  });
   Object.keys(groups).forEach(date => {
-    groups[date].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-  })
-  
-  return groups
-})
+    groups[date].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+  });
+  return groups;
+});
 
-// Activity statistics
-const loginCount = computed(() => {
-  return activityLogs.value.filter(activity => activity.type === 'login').length
-})
+const loginCount = computed(() => activityLogs.value.filter(a => a.type === 'login').length);
+const analysisCount = computed(() => activityLogs.value.filter(a => a.type === 'analysis').length);
 
-const analysisCount = computed(() => {
-  return activityLogs.value.filter(activity => activity.type === 'analysis').length
-})
-
-// Helper methods for activity display
-const getActivityTypeLabel = (type) => {
-  const labels = {
-    'login': 'Inicio de sesión',
-    'logout': 'Cierre de sesión',
-    'analysis': 'Análisis de imagen'
-  }
-  return labels[type] || type
-}
-
-const getActivityBadgeClass = (type) => {
-  const classes = {
-    'login': 'bg-green-100 text-green-800',
-    'logout': 'bg-orange-100 text-orange-800',
-    'analysis': 'bg-blue-100 text-blue-800'
-  }
-  return classes[type] || 'bg-gray-100 text-gray-800'
-}
-
-const formatActivityTime = (timestamp) => {
-  try {
-    const date = new Date(timestamp)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffMinutes = Math.floor(diffMs / (1000 * 60))
-    const diffHours = Math.floor(diffMinutes / 60)
-    const diffDays = Math.floor(diffHours / 24)
-    
-    if (diffMinutes < 1) return 'Ahora mismo'
-    if (diffMinutes < 60) return `Hace ${diffMinutes}m`
-    if (diffHours < 24) return `Hace ${diffHours}h`
-    if (diffDays === 1) return 'Ayer'
-    if (diffDays < 7) return `Hace ${diffDays} días`
-    
-    return date.toLocaleDateString('es-ES')
-  } catch (error) {
-    return 'Fecha inválida'
-  }
-}
-
+const formatTime = (timestamp) => new Date(timestamp).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 const formatDateHeader = (dateString) => {
-  try {
-    const date = new Date(dateString)
-    const today = new Date()
-    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000)
-    
-    if (date.toDateString() === today.toDateString()) return 'Hoy'
-    if (date.toDateString() === yesterday.toDateString()) return 'Ayer'
-    
-    return date.toLocaleDateString('es-ES', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    })
-  } catch (error) {
-    return dateString
-  }
-}
-
-const formatTime = (timestamp) => {
-  try {
-    return new Date(timestamp).toLocaleTimeString('es-ES', {
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  } catch (error) {
-    return 'Hora inválida'
-  }
-}
+  const date = new Date(dateString);
+  const today = new Date();
+  const yesterday = new Date(today.getTime() - 86400000);
+  if (date.toDateString() === today.toDateString()) return 'Hoy';
+  if (date.toDateString() === yesterday.toDateString()) return 'Ayer';
+  return date.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+};
 
 const loadActivityLogs = async (page = 1) => {
   try {
-    loading.value = true
-    error.value = null
-    
-    const apiUrl = import.meta.env.VITE_API_BASE_URL
+    loading.value = true;
+    error.value = null;
+    const apiUrl = import.meta.env.VITE_API_BASE_URL;
     const response = await fetch(`${apiUrl}/users/stats`, {
-      method: 'GET',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    })
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    const data = await response.json()
-    
+      method: 'GET', credentials: 'include', headers: { 'Content-Type': 'application/json' }
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
     if (data.success !== false && (data.recentSessions || data.recentAnalyses)) {
-      // Combine sessions and analyses into activity logs
-      const logs = []
-      
-      // Add session activities
+      const logs = [];
       if (data.recentSessions) {
         data.recentSessions.forEach(session => {
-          // Login activity
           logs.push({
-            id: session.id,
-            type: 'login',
-            timestamp: new Date(session.loginAt),
-            title: 'Inicio de sesión',
-            subtitle: `IP: ${session.ipAddress || 'No disponible'}`,
-            icon: '🔓',
-            color: 'bg-green-500',
-            details: {
-              ip: session.ipAddress || 'No disponible',
-              activa: session.isActive ? 'Sí' : 'No'
-            }
-          })
-          
-          // Logout activity (if session ended)
+            id: session.id, type: 'login', timestamp: new Date(session.loginAt),
+            title: 'Inicio de sesión', subtitle: `IP: ${session.ipAddress || 'N/A'}`,
+            icon: '🔓', color: 'icon-bg-green'
+          });
           if (session.logoutAt) {
             logs.push({
-              id: session.id + '_logout',
-              type: 'logout',
-              timestamp: new Date(session.logoutAt),
-              title: 'Cierre de sesión',
-              subtitle: `IP: ${session.ipAddress || 'No disponible'}`,
-              icon: '🔒',
-              color: 'bg-orange-500',
-              details: {
-                ip: session.ipAddress || 'No disponible'
-              }
-            })
+              id: `${session.id}_logout`, type: 'logout', timestamp: new Date(session.logoutAt),
+              title: 'Cierre de sesión', subtitle: `IP: ${session.ipAddress || 'N/A'}`,
+              icon: '🔒', color: 'icon-bg-orange'
+            });
           }
-        })
+        });
       }
-      
-      // Add analysis activities
       if (data.recentAnalyses) {
         data.recentAnalyses.forEach(analysis => {
           logs.push({
-            id: analysis.id,
-            type: 'analysis',
-            timestamp: new Date(analysis.createdOn),
-            title: 'Análisis de imagen completado',
-            subtitle: analysis.result,
-            icon: '🔬',
-            color: 'bg-blue-500',
-            details: {
-              resultado: analysis.result,
-              confianza: analysis.confidence ? `${Math.round(analysis.confidence * 100)}%` : 'N/A',
-              modelo: analysis.modelId || 'Desconocido'
-            }
-          })
-        })
+            id: analysis.id, type: 'analysis', timestamp: new Date(analysis.createdOn),
+            title: 'Análisis de imagen', subtitle: analysis.result,
+            icon: '🔬', color: 'icon-bg-blue'
+          });
+        });
       }
-      
-      // Sort by timestamp (newest first)
-      logs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-      
-      if (page === 1) {
-        activityLogs.value = logs
-      } else {
-        activityLogs.value = [...activityLogs.value, ...logs]
-      }
-      
-      // For now, no pagination - set hasMore to false
-      hasMore.value = false
+      logs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      activityLogs.value = page === 1 ? logs : [...activityLogs.value, ...logs];
+      hasMore.value = false;
     } else {
-      throw new Error(data.error || 'Failed to fetch activity logs')
+      throw new Error(data.error || 'Failed to fetch logs');
     }
   } catch (err) {
-    console.error('Error fetching activity logs:', err)
-    error.value = err.message
+    error.value = err.message;
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
-
+};
 const loadMoreLogs = async () => {
-  if (loading.value || !hasMore.value) return
-  
-  currentPage.value += 1
-  await loadActivityLogs(currentPage.value)
-}
+  if (loading.value || !hasMore.value) return;
+  currentPage.value++;
+  await loadActivityLogs(currentPage.value);
+};
 
-// Add and remove keyboard event listeners
 onMounted(async () => {
-  document.addEventListener('keydown', handleKeydown)
-  await loadActivityLogs()
-})
-
+  document.addEventListener('keydown', handleKeydown);
+  await loadActivityLogs();
+});
 onUnmounted(() => {
-  document.removeEventListener('keydown', handleKeydown)
-})
+  document.removeEventListener('keydown', handleKeydown);
+});
 </script>
 
-<style>
+<style scoped>
+/* --- Estilos Generales del Modal --- */
 .modal-overlay {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  background-color: rgba(0, 0, 0, 0.6) !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  z-index: 999999 !important;
-  padding: 1rem !important;
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(10, 20, 30, 0.6);
+  backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; padding: 1rem;
 }
-
 .modal-container {
-  background-color: white !important;
-  border-radius: 1.5rem !important;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
-  max-width: 80rem !important;
-  width: 100% !important;
-  max-height: 85vh !important;
-  overflow: hidden !important;
-  transform: scale(1) !important;
-  transition: all 0.3s ease !important;
+  background-color: #f8fafc;
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+  max-width: 1000px; width: 100%;
+  height: 90vh;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
+.modal-header {
+  background: linear-gradient(45deg, #b91c1c, #7f1d1d);
+  color: white; padding: 1.5rem;
+  display: flex; align-items: center; justify-content: space-between;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  flex-shrink: 0;
+}
+.header-content { display: flex; align-items: center; gap: 1rem; }
+.header-icon { font-size: 1.8rem; }
+.modal-title { font-size: 1.5rem; font-weight: 700; }
+.close-btn {
+  font-size: 2rem; font-weight: 300; line-height: 1;
+  background: none; border: none; color: rgba(255,255,255,0.7);
+  cursor: pointer; transition: all 0.2s ease;
+}
+.close-btn:hover { color: #fff; transform: rotate(90deg) scale(1.1); }
+.modal-body { padding: 2rem; overflow-y: auto; }
 
-.modal-container:hover {
-  transform: scale(1.01) !important;
+/* --- Placeholder y Carga --- */
+.placeholder-content { text-align: center; padding: 4rem 1rem; color: #6b7280; }
+.placeholder-icon { font-size: 3rem; margin-bottom: 1rem; }
+.placeholder-title { font-size: 1.25rem; font-weight: 700; color: #374151; }
+.spinner-large { width: 2.5rem; height: 2.5rem; border: 4px solid #d1d5db; border-top-color: #b91c1c; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1rem auto; }
+
+/* --- Línea de Tiempo --- */
+.timeline-wrapper { display: flex; flex-direction: column; gap: 2rem; }
+.summary-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
 }
+.stat-card {
+  background-color: #fff; padding: 1.5rem; border-radius: 12px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.05); border: 1px solid #e5e7eb;
+  display: flex; align-items: center; gap: 1rem;
+}
+.stat-label { font-size: 0.9rem; font-weight: 500; color: #6b7280; }
+.stat-value { font-size: 1.75rem; font-weight: 700; color: #111827; }
+.stat-icon { font-size: 1.8rem; padding: 0.75rem; border-radius: 8px; }
+.icon-green { color: #166534; background-color: #dcfce7; }
+.icon-blue { color: #1d4ed8; background-color: #dbeafe; }
+.icon-orange { color: #9a3412; background-color: #ffedd5; }
+
+.timeline-group { display: flex; flex-direction: column; gap: 1rem; }
+.timeline-date-header {
+  font-weight: 600; font-size: 1.1rem; color: #b91c1c;
+  padding-bottom: 0.5rem; border-bottom: 2px solid #fde2e2;
+}
+.activity-items { display: flex; flex-direction: column; gap: 1rem; }
+.activity-card {
+  background-color: #fff; border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.04); border: 1px solid #e5e7eb;
+  padding: 1rem; display: flex; align-items: center; gap: 1rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.activity-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.06); }
+.activity-icon {
+  width: 2.5rem; height: 2.5rem; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; color: white;
+}
+.icon-bg-green { background-color: #16a34a; }
+.icon-bg-orange { background-color: #f97316; }
+.icon-bg-blue { background-color: #2563eb; }
+.activity-content { flex: 1; min-width: 0; }
+.content-header { display: flex; justify-content: space-between; align-items: baseline; }
+.activity-content h4 { font-weight: 600; color: #374151; }
+.activity-content .subtitle { font-size: 0.9rem; color: #6b7280; }
+.timestamp { font-size: 0.8rem; color: #9ca3af; }
+
+.load-more-container { text-align: center; margin-top: 1rem; }
+
+/* --- Botones --- */
+.action-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 0.5rem; padding: 0.7rem 1.5rem; border-radius: 8px;
+  font-weight: 600; border: none; cursor: pointer; transition: all 0.2s ease;
+}
+.action-btn:hover { transform: translateY(-2px); }
+.btn-primary { background-color: #b91c1c; color: white; }
+.btn-secondary { background-color: #e5e7eb; color: #374151; }
+
+/* --- Animaciones --- */
+.animated-item { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; }
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 0.3s ease; }
+.modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>

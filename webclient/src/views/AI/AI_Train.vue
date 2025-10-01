@@ -1,342 +1,147 @@
 <template>
-  <div class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-    <!-- Access denied for non-admin users -->
-    <section v-if="!isLoggedIn || !isAdmin" class="p-4 sm:p-8 lg:p-12 bg-gradient-to-br from-red-50 to-red-100 rounded-lg sm:rounded-xl lg:rounded-2xl shadow-xl">
-      <div class="text-center">
-        <div class="text-6xl mb-4">🔒</div>
-        <h1 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-red-700 mb-4">Acceso Restringido</h1>
-        <p class="text-lg text-gray-600 mb-6">
-          Esta sección está disponible solo para administradores y superadministradores.
-        </p>
-        <router-link 
-          v-if="!isLoggedIn"
-          to="/login" 
-          class="inline-block px-6 py-3 bg-red-700 text-white font-bold rounded-lg hover:bg-red-800 transition-all duration-300"
-        >
-          Iniciar Sesión
-        </router-link>
-      </div>
-    </section>
-
-    <!-- Loading authentication -->
-    <section v-if="authLoading" class="p-4 sm:p-8 lg:p-12 bg-gradient-to-br from-slate-50 to-blue-100 rounded-lg sm:rounded-xl lg:rounded-2xl shadow-xl">
-      <h1 class="text-xl sm:text-2xl lg:text-4xl font-extrabold text-red-700">Verificando autenticación...</h1>
-    </section>
-
-    <!-- Main content - only show if authenticated and admin -->
-    <div v-if="isLoggedIn && isAdmin && !authLoading" class="space-y-6">
-      <!-- Header -->
-      <section class="p-6 bg-gradient-to-br from-purple-50 to-indigo-100 rounded-xl shadow-lg">
-        <h1 class="text-3xl font-extrabold text-purple-700 mb-2">🏋️ Entrenamiento de Modelos IA</h1>
-        <p class="text-gray-600">
+  <div class="page-wrapper">
+    
+    <div v-if="isLoggedIn && isAdmin && !authLoading" class="main-content">
+      
+      <section class="content-section animated-item">
+        <h1 class="section-title">🏋️ Entrenamiento de Modelos IA</h1>
+        <p class="section-text">
           Configura y entrena modelos de inteligencia artificial usando YOLOv8 con tus datasets personalizados.
         </p>
-        <div class="mt-4 bg-purple-50 border border-purple-200 rounded-lg p-3">
-          <p class="text-sm text-purple-700">
-            <strong>Conectado como:</strong> {{ user?.role }}
-          </p>
+        <div class="user-status status-admin">
+          <strong>Conectado como:</strong> {{ user?.role }}
         </div>
       </section>
 
-      <!-- Training Configuration Form -->
-      <section class="bg-white rounded-xl shadow-lg p-6">
-        <h2 class="text-2xl font-bold text-gray-800 mb-6">Configuración de Entrenamiento</h2>
+      <section class="content-section animated-item" style="animation-delay: 0.1s;">
+        <h2 class="form-title">Configuración de Entrenamiento</h2>
         
-        <form @submit.prevent="handleTraining" class="space-y-6">
-          <!-- Dataset Selection -->
-          <div class="space-y-3">
-            <label class="block text-sm font-bold text-gray-700">
-              Dataset <span class="text-red-500">*</span>
-            </label>
-            <select 
-              v-model.number="trainingConfig.datasetId" 
-              required
-              :disabled="isTraining"
-              class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-300 disabled:bg-gray-50"
-            >
+        <form @submit.prevent="handleTraining" class="training-form">
+          <div class="form-group">
+            <label class="form-label">Dataset <span class="required">*</span></label>
+            <select v-model.number="trainingConfig.datasetId" required :disabled="isTraining" class="form-input">
               <option :value="null">Selecciona un dataset</option>
-              <option 
-                v-for="dataset in availableDatasets" 
-                :key="dataset.id" 
-                :value="dataset.id"
-              >
+              <option v-for="dataset in availableDatasets" :key="dataset.id" :value="dataset.id">
                 {{ dataset.name }} - {{ dataset.description || 'Sin descripción' }}
               </option>
             </select>
-            <p class="text-sm text-gray-500">
-              Selecciona el dataset que se utilizará para entrenar el modelo.
-            </p>
+            <p class="form-description">Selecciona el dataset que se utilizará para entrenar el modelo.</p>
           </div>
 
-          <!-- Model Configuration -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Model Type -->
-            <div class="space-y-3">
-              <label class="block text-sm font-bold text-gray-700">
-                Tipo de Modelo
-              </label>
-              <select 
-                v-model="trainingConfig.modelType" 
-                :disabled="isTraining"
-                class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-300 disabled:bg-gray-50"
-              >
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Tipo de Modelo</label>
+              <select v-model="trainingConfig.modelType" :disabled="isTraining" class="form-input">
                 <option value="YOLOv8_m">YOLOv8 Medium (Recomendado)</option>
               </select>
-              <p class="text-sm text-gray-500">
-                Por ahora solo disponible YOLOv8 Medium. Más opciones próximamente.
-              </p>
+              <p class="form-description">Por ahora solo disponible YOLOv8 Medium.</p>
             </div>
-
-            <!-- Model Name -->
-            <div class="space-y-3">
-              <label class="block text-sm font-bold text-gray-700">
-                Nombre del Modelo <span class="text-red-500">*</span>
-              </label>
-              <input 
-                v-model="trainingConfig.modelName" 
-                type="text" 
-                required
-                :disabled="isTraining"
-                placeholder="Ej: FrambuesiasModel_v1"
-                class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-300 disabled:bg-gray-50"
-              />
-              <p class="text-sm text-gray-500">
-                Nombre único para identificar tu modelo.
-              </p>
+            <div class="form-group">
+              <label class="form-label">Nombre del Modelo <span class="required">*</span></label>
+              <input v-model="trainingConfig.modelName" type="text" required :disabled="isTraining" placeholder="Ej: FrambuesiasModel_v1" class="form-input" />
+              <p class="form-description">Nombre único para identificar tu modelo.</p>
             </div>
           </div>
 
-          <!-- Training Parameters -->
-          <div class="bg-gray-50 rounded-xl p-6 space-y-6">
-            <h3 class="text-lg font-bold text-gray-800">Parámetros de Entrenamiento</h3>
-            
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <!-- Epochs -->
-              <div class="space-y-3">
-                <label class="block text-sm font-bold text-gray-700">
-                  Épocas
-                </label>
-                <input 
-                  v-model.number="trainingConfig.epochs" 
-                  type="number" 
-                  min="1" 
-                  max="1000"
-                  :disabled="isTraining"
-                  class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-300 disabled:bg-gray-50"
-                />
-                <p class="text-sm text-gray-500">
-                  <strong>Recomendado:</strong> 50-100 para datasets pequeños, 20-50 para datasets grandes.
-                </p>
+          <div class="form-subsection">
+            <h3 class="subsection-title">Parámetros de Entrenamiento</h3>
+            <div class="form-grid-3">
+              <div class="form-group">
+                <label class="form-label">Épocas</label>
+                <input v-model.number="trainingConfig.epochs" type="number" min="1" max="1000" :disabled="isTraining" class="form-input" />
+                <p class="form-description"><strong>Recomendado:</strong> 20-100</p>
               </div>
-
-              <!-- Image Size -->
-              <div class="space-y-3">
-                <label class="block text-sm font-bold text-gray-700">
-                  Tamaño de Imagen
-                </label>
-                <select 
-                  v-model.number="trainingConfig.imageSize" 
-                  :disabled="isTraining"
-                  class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-300 disabled:bg-gray-50"
-                >
+              <div class="form-group">
+                <label class="form-label">Tamaño de Imagen</label>
+                <select v-model.number="trainingConfig.imageSize" :disabled="isTraining" class="form-input">
+                  <option :value="640">640x640 (Recomendado)</option>
                   <option :value="416">416x416</option>
                   <option :value="512">512x512</option>
-                  <option :value="640">640x640 (Recomendado)</option>
                   <option :value="800">800x800</option>
                 </select>
-                <p class="text-sm text-gray-500">
-                  <strong>Recomendado:</strong> 640x640 para mejor precisión/velocidad.
-                </p>
+                 <p class="form-description">Precisión vs. velocidad.</p>
               </div>
-
-              <!-- Batch Size -->
-              <div class="space-y-3">
-                <label class="block text-sm font-bold text-gray-700">
-                  Tamaño de Lote
-                </label>
-                <select 
-                  v-model.number="trainingConfig.batchSize" 
-                  :disabled="isTraining"
-                  class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-300 disabled:bg-gray-50"
-                >
-                  <option :value="8">8</option>
+              <div class="form-group">
+                <label class="form-label">Tamaño de Lote</label>
+                <select v-model.number="trainingConfig.batchSize" :disabled="isTraining" class="form-input">
                   <option :value="16">16 (Recomendado)</option>
+                  <option :value="8">8</option>
                   <option :value="32">32</option>
                   <option :value="64">64</option>
                 </select>
-                <p class="text-sm text-gray-500">
-                  <strong>Recomendado:</strong> 16 para la mayoría de casos. Usar valores menores si hay problemas de memoria.
-                </p>
-              </div>
-            </div>
-
-            <!-- Advanced Options -->
-            <div class="space-y-4">
-              <h4 class="text-md font-semibold text-gray-700">Opciones Avanzadas</h4>
-              
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Learning Rate -->
-                <div class="space-y-3">
-                  <label class="block text-sm font-bold text-gray-700">
-                    Tasa de Aprendizaje
-                  </label>
-                  <input 
-                    v-model.number="trainingConfig.learningRate" 
-                    type="number" 
-                    step="0.0001"
-                    min="0.0001"
-                    max="0.1"
-                    :disabled="isTraining"
-                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-300 disabled:bg-gray-50"
-                  />
-                  <p class="text-sm text-gray-500">
-                    <strong>Recomendado:</strong> 0.01 para la mayoría de casos.
-                  </p>
-                </div>
-
-                <!-- Patience -->
-                <div class="space-y-3">
-                  <label class="block text-sm font-bold text-gray-700">
-                    Paciencia (Early Stopping)
-                  </label>
-                  <input 
-                    v-model.number="trainingConfig.patience" 
-                    type="number" 
-                    min="5"
-                    max="100"
-                    :disabled="isTraining"
-                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-300 disabled:bg-gray-50"
-                  />
-                  <p class="text-sm text-gray-500">
-                    <strong>Recomendado:</strong> 20-30 épocas sin mejora antes de parar.
-                  </p>
-                </div>
+                <p class="form-description">Ajustar según VRAM.</p>
               </div>
             </div>
           </div>
 
-          <!-- Description -->
-          <div class="space-y-3">
-            <label class="block text-sm font-bold text-gray-700">
-              Descripción del Modelo
-            </label>
-            <textarea 
-              v-model="trainingConfig.description" 
-              rows="3"
-              :disabled="isTraining"
-              placeholder="Describe brevemente este modelo y su propósito..."
-              class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-300 disabled:bg-gray-50 resize-none"
-            ></textarea>
+          <div class="form-group">
+            <label class="form-label">Descripción del Modelo</label>
+            <textarea v-model="trainingConfig.description" rows="3" :disabled="isTraining" placeholder="Describe brevemente este modelo y su propósito..." class="form-textarea"></textarea>
           </div>
 
-          <!-- Submit Button -->
-          <div class="flex justify-end space-x-4">
-            <button 
-              type="button" 
-              @click="resetForm"
-              :disabled="isTraining"
-              class="px-6 py-3 border-2 border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Limpiar Formulario
+          <div class="form-actions">
+            <button type="button" @click="resetForm" :disabled="isTraining" class="action-btn btn-secondary">
+              Limpiar
             </button>
-            <button 
-              type="submit" 
-              :disabled="isTraining || !isFormValid"
-              class="px-8 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-bold rounded-xl hover:from-purple-700 hover:to-purple-800 transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3"
-            >
-              <span v-if="isTraining" class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-              <span>{{ isTraining ? 'Iniciando Entrenamiento...' : 'Iniciar Entrenamiento' }}</span>
+            <button type="submit" :disabled="isTraining || !isFormValid" class="action-btn btn-primary">
+              <span v-if="isTraining" class="spinner"></span>
+              <span>{{ isTraining ? 'Iniciando...' : 'Iniciar Entrenamiento' }}</span>
             </button>
           </div>
         </form>
       </section>
 
-      <!-- Error Display -->
-      <section v-if="error" class="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl shadow-lg">
-        <div class="flex items-center">
-          <div class="flex-shrink-0">
-            <div class="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center">
-              <span class="text-white text-sm font-bold">!</span>
-            </div>
-          </div>
-          <div class="ml-3">
-            <h3 class="text-red-700 font-bold">Error</h3>
-            <p class="text-red-600">{{ error }}</p>
-          </div>
-        </div>
+      <section v-if="error" class="alert alert-error animated-item" style="animation-delay: 0.2s;">
+        <h4>Error</h4>
+        <p>{{ error }}</p>
+      </section>
+      <section v-if="successMessage" class="alert alert-success animated-item" style="animation-delay: 0.2s;">
+        <h4>¡Éxito!</h4>
+        <p>{{ successMessage }}</p>
       </section>
 
-      <!-- Success Display -->
-      <section v-if="successMessage" class="bg-green-50 border-l-4 border-green-500 p-4 rounded-r-xl shadow-lg">
-        <div class="flex items-center">
-          <div class="flex-shrink-0">
-            <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-              <span class="text-white text-sm font-bold">✓</span>
-            </div>
-          </div>
-          <div class="ml-3">
-            <h3 class="text-green-700 font-bold">¡Éxito!</h3>
-            <p class="text-green-600">{{ successMessage }}</p>
-          </div>
-        </div>
+      <section class="alert alert-info animated-item" style="animation-delay: 0.3s;">
+        <h4>ℹ️ Información Importante</h4>
+        <p>El entrenamiento es un proceso asíncrono que se ejecuta en segundo plano. Puede tomar desde minutos hasta horas, dependiendo de la configuración. Recibirás una notificación cuando finalice.</p>
       </section>
 
-      <!-- Training Info -->
-      <section class="bg-blue-50 rounded-xl p-6">
-        <h3 class="text-lg font-bold text-blue-800 mb-4">ℹ️ Información Importante</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="bg-white rounded-lg p-4">
-            <h4 class="font-semibold text-blue-700 mb-2">Tiempo de Entrenamiento</h4>
-            <p class="text-sm text-gray-600">
-              El tiempo depende del tamaño del dataset y parámetros. Puede tomar desde minutos hasta horas.
-            </p>
-          </div>
-          <div class="bg-white rounded-lg p-4">
-            <h4 class="font-semibold text-blue-700 mb-2">Proceso Asíncrono</h4>
-            <p class="text-sm text-gray-600">
-              El entrenamiento se ejecuta en segundo plano. Recibirás notificaciones del progreso.
-            </p>
-          </div>
-          <div class="bg-white rounded-lg p-4">
-            <h4 class="font-semibold text-blue-700 mb-2">Registro de Auditoría</h4>
-            <p class="text-sm text-gray-600">
-              Todas las acciones de entrenamiento se registran para seguimiento y auditoría.
-            </p>
-          </div>
-          <div class="bg-white rounded-lg p-4">
-            <h4 class="font-semibold text-blue-700 mb-2">Almacenamiento Automático</h4>
-            <p class="text-sm text-gray-600">
-              Los modelos entrenados se guardan automáticamente en el sistema de archivos.
-            </p>
-          </div>
-        </div>
+    </div>
+
+    <div v-else>
+      <section v-if="authLoading" class="loading-section">
+        <h1 class="loading-text">Verificando autenticación...</h1>
+      </section>
+      <section v-if="!authLoading" class="content-section animated-item">
+        <div class="access-denied-icon">🔒</div>
+        <h1 class="section-title">Acceso Restringido</h1>
+        <p class="section-text">Esta sección está disponible solo para administradores.</p>
+        <router-link v-if="!isLoggedIn" to="/login" class="action-btn btn-primary">
+          Iniciar Sesión
+        </router-link>
       </section>
     </div>
+    
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useAuth } from '../../composables/use_auth.js'
-import { useCSRF } from '../../composables/use_csrf.js'
-import { useAudit } from '../../composables/log_audit.js'
+// --- LÓGICA DEL COMPONENTE (SIN CAMBIOS) ---
+import { ref, computed, onMounted } from 'vue';
+import { useAuth } from '../../composables/use_auth.js';
+import { useCSRF } from '../../composables/use_csrf.js';
+import { useAudit } from '../../composables/log_audit.js';
 
-// Composables
-const { isLoggedIn, isAdmin, user, loading: authLoading, checkAuthStatus } = useAuth()
-const { makeSecureRequest } = useCSRF()
-const { logModelTraining } = useAudit()
+const { isLoggedIn, isAdmin, user, loading: authLoading, checkAuthStatus } = useAuth();
+const { makeSecureRequest } = useCSRF();
+const { logModelTraining } = useAudit();
+const apiUrl = import.meta.env.VITE_API_BASE_URL;
 
-// API URL
-const apiUrl = import.meta.env.VITE_API_BASE_URL
+const availableDatasets = ref([]);
+const isTraining = ref(false);
+const error = ref('');
+const successMessage = ref('');
+const loadingDatasets = ref(false);
 
-// State
-const availableDatasets = ref([])
-const isTraining = ref(false)
-const error = ref('')
-const successMessage = ref('')
-const loadingDatasets = ref(false)
-
-// Training configuration
 const trainingConfig = ref({
   datasetId: null,
   modelName: '',
@@ -347,69 +152,47 @@ const trainingConfig = ref({
   batchSize: 16,
   learningRate: 0.01,
   patience: 30
-})
+});
 
-// Computed properties
 const isFormValid = computed(() => {
-  const datasetId = trainingConfig.value.datasetId
-  const isValid = datasetId !== null && 
-         datasetId !== '' &&
-         Number.isInteger(datasetId) &&
-         datasetId > 0 &&
-         trainingConfig.value.modelName.trim().length > 0 &&
-         trainingConfig.value.epochs > 0 &&
-         trainingConfig.value.batchSize > 0 &&
-         trainingConfig.value.learningRate > 0
-  
-  // Debug logging
-  console.log('Form validation debug:', {
-    datasetId,
-    datasetIdType: typeof datasetId,
-    datasetIdValid: datasetId !== null && datasetId !== '' && Number.isInteger(datasetId) && datasetId > 0,
-    modelNameValid: trainingConfig.value.modelName.trim().length > 0,
-    epochsValid: trainingConfig.value.epochs > 0,
-    batchSizeValid: trainingConfig.value.batchSize > 0,
-    learningRateValid: trainingConfig.value.learningRate > 0,
-    overallValid: isValid
-  })
-  
-  return isValid
-})
+  const { datasetId, modelName, epochs, batchSize, learningRate } = trainingConfig.value;
+  return (
+    datasetId !== null &&
+    Number.isInteger(datasetId) &&
+    datasetId > 0 &&
+    modelName.trim().length > 0 &&
+    epochs > 0 &&
+    batchSize > 0 &&
+    learningRate > 0
+  );
+});
 
-// Methods
 const fetchAvailableDatasets = async () => {
-  // Get all datasets to show on the training page
-  loadingDatasets.value = true
-  error.value = ''
-  
+  loadingDatasets.value = true;
+  error.value = '';
   try {
-    const response = await makeSecureRequest(`${apiUrl}/datasets/`, {
-      method: 'GET'
-    })
+    const response = await makeSecureRequest(`${apiUrl}/datasets/`, { method: 'GET' });
     if (response.ok) {
-      const data = await response.json()
-      availableDatasets.value = data.datasets || []
+      const data = await response.json();
+      availableDatasets.value = data.datasets || [];
     } else {
-      console.error('Failed to fetch datasets')
+      error.value = 'No se pudieron cargar los datasets.';
     }
   } catch (err) {
-    console.error('Error fetching datasets:', err)
+    error.value = 'Error de red al cargar los datasets.';
   } finally {
-    loadingDatasets.value = false
+    loadingDatasets.value = false;
   }
-}
+};
 
 const handleTraining = async () => {
-  if (!isFormValid.value || isTraining.value) return
-
-  isTraining.value = true
-  error.value = ''
-  successMessage.value = ''
-
+  if (!isFormValid.value || isTraining.value) return;
+  isTraining.value = true;
+  error.value = '';
+  successMessage.value = '';
   try {
-    // Prepare training payload
     const trainingPayload = {
-      datasetId: trainingConfig.value.datasetId, // Should already be an integer
+      datasetId: trainingConfig.value.datasetId,
       modelName: trainingConfig.value.modelName.trim(),
       modelType: trainingConfig.value.modelType,
       description: trainingConfig.value.description.trim(),
@@ -420,86 +203,187 @@ const handleTraining = async () => {
         learningRate: trainingConfig.value.learningRate,
         patience: trainingConfig.value.patience
       }
-    }
-
-    console.log('Training payload being sent:', trainingPayload)
-    console.log('Dataset ID type:', typeof trainingConfig.value.datasetId)
-    console.log('Dataset ID value:', trainingConfig.value.datasetId)
-
+    };
     const response = await makeSecureRequest(`${apiUrl}/models/train`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(trainingPayload)
-    })
-
-    console.log('Training request response:', {
-      status: response.status,
-      statusText: response.statusText,
-      ok: response.ok
-    })
-
+    });
+    const data = await response.json();
     if (response.ok) {
-      const data = await response.json()
-      
-      successMessage.value = `¡Entrenamiento iniciado correctamente! ID del trabajo: ${data.jobId || 'N/A'}`
-      
-      // Log audit action
-      await logModelTraining(
-        trainingConfig.value.modelName,
-        trainingConfig.value.datasetId,
-        trainingConfig.value.modelType,
-        data.modelId
-      )
-      
-      // Reset form after successful submission
+      successMessage.value = `¡Entrenamiento iniciado correctamente! ID del trabajo: ${data.jobId || 'N/A'}`;
+      await logModelTraining(trainingPayload.modelName, trainingPayload.datasetId, trainingPayload.modelType, data.modelId);
       setTimeout(() => {
-        resetForm()
-        successMessage.value = ''
-      }, 5000)
-      
+        resetForm();
+        successMessage.value = '';
+      }, 5000);
     } else {
-      // Handle error response properly
-      try {
-        const errorData = await response.json()
-        error.value = errorData.message || `Error ${response.status}: ${response.statusText}`
-        console.error('Training API error:', errorData)
-      } catch (parseError) {
-        error.value = `Error ${response.status}: ${response.statusText}`
-        console.error('Training API error (no JSON):', response.statusText)
-      }
+      error.value = data.message || `Error ${response.status}`;
     }
-
   } catch (err) {
-    console.error('Error starting training:', err)
-    error.value = 'Error al iniciar el entrenamiento. Por favor, inténtalo de nuevo.'
+    error.value = 'Error al iniciar el entrenamiento. Por favor, inténtalo de nuevo.';
   } finally {
-    isTraining.value = false
+    isTraining.value = false;
   }
-}
+};
 
 const resetForm = () => {
   trainingConfig.value = {
-    datasetId: null,
-    modelName: '',
-    modelType: 'YOLOv8_m',
-    description: '',
-    epochs: 50,
-    imageSize: 640,
-    batchSize: 16,
-    learningRate: 0.01,
-    patience: 30
-  }
-  error.value = ''
-  successMessage.value = ''
-}
+    datasetId: null, modelName: '', modelType: 'YOLOv8_m', description: '',
+    epochs: 50, imageSize: 640, batchSize: 16, learningRate: 0.01, patience: 30
+  };
+  error.value = '';
+  successMessage.value = '';
+};
 
 onMounted(async () => {
-  await checkAuthStatus()
-  
+  await checkAuthStatus();
   if (isLoggedIn.value && isAdmin.value) {
-    await fetchAvailableDatasets()
+    await fetchAvailableDatasets();
   }
-})
+});
 </script>
+
+<style scoped>
+/* --- Estilos Generales --- */
+.page-wrapper {
+  width: 100%;
+  min-height: 100vh;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  font-family: 'Poppins', sans-serif;
+  color: #333;
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
+  background-color: #fff;
+}
+.main-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+.content-section {
+  background-color: #fff;
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.07);
+  padding: 2.5rem;
+  text-align: center;
+}
+.section-title {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #b22222;
+  margin-bottom: 0.5rem;
+}
+.section-text {
+  max-width: 800px;
+  margin: 0 auto;
+  font-size: 1.1rem;
+  line-height: 1.7;
+  color: #555;
+  margin-top: 1rem;
+}
+
+/* --- Formulario --- */
+.form-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 2rem;
+  text-align: left;
+}
+.training-form {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  text-align: left;
+}
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; }
+.form-grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; }
+.form-group { display: flex; flex-direction: column; gap: 0.5rem; }
+.form-label { font-weight: 600; font-size: 0.9rem; color: #444; }
+.required { color: #b22222; }
+.form-input, .form-textarea {
+  width: 100%;
+  padding: 0.8rem 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  font-size: 1rem;
+}
+.form-input:focus, .form-textarea:focus {
+  outline: none;
+  border-color: #b22222;
+  box-shadow: 0 0 0 3px rgba(178, 34, 34, 0.1);
+}
+.form-input:disabled { background-color: #f5f5f5; cursor: not-allowed; }
+.form-description { font-size: 0.85rem; color: #777; }
+.form-subsection {
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  padding: 1.5rem;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.subsection-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #333;
+}
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+/* --- Botones --- */
+.action-btn {
+  display: flex; align-items: center; justify-content: center; gap: 0.75rem;
+  padding: 0.8rem 1.8rem; border-radius: 25px; color: white;
+  border: none; font-size: 1rem; font-weight: 600; cursor: pointer;
+  transition: all 0.3s ease; text-decoration: none;
+}
+.action-btn:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.1); }
+.action-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
+.btn-primary { background: linear-gradient(45deg, #b22222, #e13c3c); }
+.btn-secondary { background-color: #fff; color: #555; border: 1px solid #ccc; }
+.btn-secondary:hover { background-color: #f5f5f5; border-color: #aaa; }
+
+/* --- Alertas y Estados --- */
+.user-status {
+  margin-top: 1rem; padding: 0.5rem 1.25rem; border-radius: 20px; font-weight: 500;
+  border: 1px solid transparent; display: inline-block;
+}
+.status-admin { background-color: #f0e6f7; color: #6b21a8; border-color: #e9d5ff; }
+.loading-section { padding: 4rem; }
+.loading-text { font-size: 1.5rem; font-weight: 600; color: #888; animation: pulsate 1.5s ease-in-out infinite; }
+.access-denied-icon { font-size: 3rem; margin-bottom: 1rem; }
+.alert {
+  padding: 1.5rem; border-radius: 10px; text-align: left;
+  border-left: 5px solid;
+}
+.alert h4 { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.25rem; }
+.alert-error { background-color: #fef2f2; border-color: #ef4444; color: #b91c1c; }
+.alert-success { background-color: #f0fdf4; border-color: #22c55e; color: #15803d; }
+.alert-info { background-color: #eff6ff; border-color: #3b82f6; color: #1e40af; }
+
+/* --- Spinner --- */
+.spinner {
+  width: 1.25rem; height: 1.25rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* --- Animaciones --- */
+.animated-item { opacity: 0; animation: fadeInUp 0.7s ease-out forwards; }
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pulsate { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>

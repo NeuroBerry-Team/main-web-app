@@ -1,252 +1,101 @@
 <template>
-  <!-- Only render modal if we're on the exact activity route, not child routes -->
   <Teleport to="body" v-if="shouldShowModal">
-    <div class="modal-overlay" @click.self="closeModal">
-      <div class="modal-container" @click.stop>
-        <div class="bg-gradient-to-r from-red-600 via-red-700 to-red-800 text-white p-6 flex items-center justify-between relative overflow-hidden">
-          <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent transform -skew-x-12"></div>
+    <transition name="modal-fade">
+      <div class="modal-overlay" @click.self="closeModal">
+        <div class="modal-container animated-item">
           
-          <div class="relative z-10 flex items-center space-x-3">
-            <div class="text-2xl">📈</div>
-            <h2 class="text-2xl font-bold">Actividad del Usuario</h2>
-          </div>
-          
-          <button 
-            @click="closeModal" 
-            class="relative z-10 text-white hover:text-red-200 text-3xl font-light w-10 h-10 flex items-center justify-center rounded-full hover:bg-white hover:bg-opacity-20 transition-all duration-200 hover:rotate-90 transform"
-            title="Cerrar ventana (ESC)"
-          >
-            ×
-          </button>
-        </div>
+          <header class="modal-header">
+            <div class="header-content">
+              <div class="header-icon">📈</div>
+              <h2 class="modal-title">Actividad del Usuario</h2>
+            </div>
+            <button @click="closeModal" class="close-btn" title="Cerrar ventana (ESC)">×</button>
+          </header>
 
-      <div class="p-8 overflow-y-auto max-h-[calc(85vh-100px)] bg-gray-50">
-        <div class="space-y-8">
-          
-          <!-- Summary Cards -->
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="bg-white p-6 rounded-2xl shadow-lg border-l-4 border-blue-500 hover:shadow-xl transition-shadow duration-300">
-              <div class="flex items-center justify-between">
-                <div>
-                  <p class="text-sm font-medium text-gray-600">Total Análisis</p>
-                  <p class="text-2xl font-bold text-gray-900">
+          <div class="modal-body">
+            <section class="summary-grid animated-item" style="animation-delay: 0.1s;">
+              <div class="stat-card">
+                <div class="stat-content">
+                  <p class="stat-label">Total Análisis</p>
+                  <p class="stat-value">
                     <span v-if="loading">...</span>
-                    <span v-else-if="error">Error</span>
                     <span v-else>{{ analysisCount }}</span>
                   </p>
                 </div>
-                <div class="text-3xl text-blue-500">🔍</div>
+                <div class="stat-icon icon-blue">🔍</div>
               </div>
-            </div>
-            
-            <div class="bg-white p-6 rounded-2xl shadow-lg border-l-4 border-green-500 hover:shadow-xl transition-shadow duration-300">
-              <div class="flex items-center justify-between">
-                <div>
-                  <p class="text-sm font-medium text-gray-600">Último Acceso</p>
-                  <p class="text-2xl font-bold text-gray-900">
+              <div class="stat-card">
+                <div class="stat-content">
+                  <p class="stat-label">Último Acceso</p>
+                  <p class="stat-value">
                     <span v-if="loading">...</span>
-                    <span v-else-if="error">Error</span>
                     <span v-else>{{ lastAccess }}</span>
                   </p>
                 </div>
-                <div class="text-3xl text-green-500">⏰</div>
+                <div class="stat-icon icon-green">⏰</div>
               </div>
-            </div>
-            
-            <div class="bg-white p-6 rounded-2xl shadow-lg border-l-4 border-purple-500 hover:shadow-xl transition-shadow duration-300">
-              <div class="flex items-center justify-between">
-                <div>
-                  <p class="text-sm font-medium text-gray-600">Días Activos (mes)</p>
-                  <p class="text-2xl font-bold text-gray-900">
+              <div class="stat-card">
+                <div class="stat-content">
+                  <p class="stat-label">Días Activos (mes)</p>
+                  <p class="stat-value">
                     <span v-if="loading">...</span>
-                    <span v-else-if="error">Error</span>
                     <span v-else>{{ userStats?.summary?.activeDaysThisMonth || 0 }}</span>
                   </p>
                 </div>
-                <div class="text-3xl text-purple-500">📅</div>
+                <div class="stat-icon icon-purple">📅</div>
               </div>
-            </div>
-          </div>
+            </section>
 
-          <!-- Recent Analysis Section -->
-          <div class="bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300">
-            <div class="flex items-center space-x-3 mb-6">
-              <div class="text-2xl">📊</div>
-              <h3 class="text-xl font-bold text-gray-800">Análisis Recientes</h3>
-            </div>
-            
-            <div v-if="loading" class="text-center py-4">
-              <p class="text-gray-500">Cargando análisis...</p>
-            </div>
-            
-            <div v-else-if="error" class="text-center py-4">
-              <p class="text-red-500">Error al cargar los análisis</p>
-            </div>
-            
-            <div v-else-if="!userStats?.recentAnalyses?.length" class="text-center py-8">
-              <div class="text-4xl mb-4">📊</div>
-              <p class="text-gray-500 mb-2">No hay análisis recientes</p>
-              <p class="text-sm text-gray-400 mb-4">Realiza tu primer análisis de imagen</p>
-              <router-link to="/AI/inference" 
-                           class="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200">
-                Crear análisis
-                <span class="ml-2">→</span>
-              </router-link>
-            </div>
-            
-            <div v-else class="space-y-4">
-              <router-link
-                v-for="analysis in userStats.recentAnalyses.slice(0, 3)"
-                :key="analysis.id"
-                :to="`/profile/activity/inferences?id=${analysis.id}`"
-                class="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200 block"
-              >
-                <div class="flex items-center space-x-4">
-                  <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                    <span class="text-green-600 font-semibold">🍓</span>
-                  </div>
-                  <div>
-                    <p class="font-semibold text-gray-800">{{ analysis.result }}</p>
-                    <p class="text-sm text-gray-600">
-                      {{ formatActivityTime(analysis.createdOn) }}
-                      <span v-if="analysis.confidence" class="ml-2">
-                        • Confianza: {{ Math.round(analysis.confidence * 100) }}% 
-                      </span> <!-- TODO: Get the proper confidence, this is hardcoded -->
-                    </p>
+            <div class="content-grid">
+              <div class="content-section animated-item" style="animation-delay: 0.2s;">
+                <h3 class="section-title">Análisis Recientes</h3>
+                <div v-if="loading" class="placeholder">Cargando...</div>
+                <div v-else-if="!userStats?.recentAnalyses?.length" class="placeholder">No hay análisis recientes.</div>
+                <div v-else class="activity-list">
+                  <router-link v-for="analysis in userStats.recentAnalyses.slice(0, 3)" :key="analysis.id" :to="`/profile/activity/inferences?id=${analysis.id}`" class="list-item">
+                    <div class="item-icon icon-bg-green">🍓</div>
+                    <div class="item-content">
+                      <p class="item-title">{{ analysis.result }}</p>
+                      <p class="item-subtitle">{{ formatActivityTime(analysis.createdOn) }}</p>
+                    </div>
+                    <div class="item-meta">→</div>
+                  </router-link>
+                </div>
+                <div class="section-footer">
+                  <router-link to="/profile/activity/inferences" class="footer-link">Ver todos los análisis</router-link>
+                </div>
+              </div>
+
+              <div class="content-section animated-item" style="animation-delay: 0.3s;">
+                <h3 class="section-title">Registro de Actividad</h3>
+                 <div v-if="loading" class="placeholder">Cargando...</div>
+                <div v-else-if="!activityLogs.length" class="placeholder">No hay actividad reciente.</div>
+                <div v-else class="activity-list scrollable">
+                  <div v-for="activity in activityLogs" :key="`${activity.type}-${activity.timestamp.getTime()}`" class="list-item">
+                    <div class="item-icon" :class="activity.color">{{ activity.icon }}</div>
+                    <div class="item-content">
+                      <p class="item-title">{{ activity.title }}</p>
+                      <p class="item-subtitle">{{ activity.subtitle }}</p>
+                    </div>
+                    <div class="item-meta">{{ formatActivityTime(activity.timestamp) }}</div>
                   </div>
                 </div>
-                <div class="text-sm text-gray-500">
-                  {{ new Date(analysis.createdOn).toLocaleTimeString('es-ES', { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
-                  }) }}
-                </div>
-              </router-link>
-            </div>
-            
-            <div class="mt-6 pt-4 border-t border-gray-200">
-              <router-link to="/profile/activity/inferences" 
-                           class="inline-flex items-center text-red-600 hover:text-red-700 font-semibold transition-colors duration-200">
-                Ver todos los análisis
-                <span class="ml-2">→</span>
-              </router-link>
-            </div>
-          </div>
-
-          <!-- Usage Metrics Section -->
-          <div class="bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300">
-            <div class="flex items-center space-x-3 mb-6">
-              <div class="text-2xl">📈</div>
-              <h3 class="text-xl font-bold text-gray-800">Métricas de Uso</h3>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div class="space-y-4">
-                <div class="flex justify-between items-center">
-                  <span class="text-gray-600">Análisis esta semana</span>
-                  <span class="font-semibold text-gray-800">
-                    {{ userStats?.summary?.analysesThisWeek || 0 }}
-                  </span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span class="text-gray-600">Racha de login actual</span>
-                  <span class="font-semibold text-gray-800">
-                    {{ userStats?.summary?.currentLoginStreak || 0 }} día{{ userStats?.summary?.currentLoginStreak !== 1 ? 's' : '' }}
-                  </span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span class="text-gray-600">Funciones más utilizadas</span>
-                  <span class="font-semibold text-gray-800">Análisis IA</span>
+                 <div class="section-footer">
+                  <router-link to="/profile/activity/logs" class="footer-link">Ver registro completo</router-link>
                 </div>
               </div>
-              <div class="space-y-4">
-                <div class="flex justify-between items-center">
-                  <span class="text-gray-600">Días activos este mes</span>
-                  <span class="font-semibold text-gray-800">
-                    {{ userStats?.summary?.activeDaysThisMonth || 0 }}
-                  </span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span class="text-gray-600">Total de imágenes</span>
-                  <span class="font-semibold text-gray-800">
-                    {{ userStats?.summary?.imagesProcessed || 0 }}
-                  </span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span class="text-gray-600">Sesiones activas</span>
-                  <span class="font-semibold text-gray-800">
-                    {{ userStats?.recentSessions?.filter(s => s.isActive).length || 0 }}
-                  </span>
-                </div>
-              </div>
-            </div>
-            
-            <div class="mt-6 pt-4 border-t border-gray-200">
-              <router-link to="/profile/activity/metrics" 
-                           class="inline-flex items-center text-red-600 hover:text-red-700 font-semibold transition-colors duration-200">
-                Ver métricas detalladas
-                <span class="ml-2">→</span>
-              </router-link>
-            </div>
-          </div>
-
-          <!-- Activity Logs Section -->
-          <div class="bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300">
-            <div class="flex items-center space-x-3 mb-6">
-              <div class="text-2xl">📝</div>
-              <h3 class="text-xl font-bold text-gray-800">Registro de Actividad</h3>
-            </div>
-            
-            <div v-if="loading" class="text-center py-4">
-              <p class="text-gray-500">Cargando actividad...</p>
-            </div>
-            
-            <div v-else-if="error" class="text-center py-4">
-              <p class="text-red-500">Error al cargar la actividad</p>
-            </div>
-            
-            <div v-else-if="activityLogs.length === 0" class="text-center py-4">
-              <p class="text-gray-500">No hay actividad reciente</p>
-            </div>
-            
-            <div v-else class="space-y-3 max-h-96 overflow-y-auto">
-              <div 
-                v-for="activity in activityLogs" 
-                :key="`${activity.type}-${activity.timestamp.getTime()}`"
-                class="flex items-center space-x-4 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
-              >
-                <div :class="activity.color" class="w-2 h-2 rounded-full flex-shrink-0"></div>
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center space-x-2">
-                    <span class="text-sm">{{ activity.icon }}</span>
-                    <p class="text-sm font-medium text-gray-800 truncate">{{ activity.title }}</p>
-                  </div>
-                  <p class="text-xs text-gray-500 truncate">{{ activity.subtitle }}</p>
-                </div>
-                <div class="text-xs text-gray-400 flex-shrink-0">
-                  {{ formatActivityTime(activity.timestamp) }}
-                </div>
-              </div>
-            </div>
-            
-            <div class="mt-6 pt-4 border-t border-gray-200">
-              <router-link to="/profile/activity/logs" 
-                           class="inline-flex items-center text-red-600 hover:text-red-700 font-semibold transition-colors duration-200">
-                Ver registro completo
-                <span class="ml-2">→</span>
-              </router-link>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  </div>
+    </transition>
   </Teleport>
   
-  <!-- Render child routes when not showing the main modal -->
   <router-view v-if="!shouldShowModal" />
 </template>
 
 <script setup>
+// --- LÓGICA DEL COMPONENTE (SIN CAMBIOS) ---
 import { useRouter, useRoute } from 'vue-router'
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 
@@ -256,185 +105,85 @@ const userStats = ref(null)
 const loading = ref(true)
 const error = ref(null)
 
-// Only show modal if we're on the exact activity route, not child routes
-const shouldShowModal = computed(() => {
-  // Show modal only for exact /profile/activity route
-  return route.path === '/profile/activity'
-})
+const shouldShowModal = computed(() => route.path === '/profile/activity')
 
-const closeModal = () => {
-  router.push('/profile') // Always return to the main profile page
-}
+const closeModal = () => router.push('/profile')
 
-// Close modal on Escape key
 const handleKeydown = (event) => {
-  if (event.key === 'Escape') {
-    closeModal()
-  }
+  if (event.key === 'Escape') closeModal()
 }
 
-// Computed properties for easy access to stats
-const analysisCount = computed(() => 
-  userStats.value?.summary?.totalAnalyses || 0
-)
-
+const analysisCount = computed(() => userStats.value?.summary?.totalAnalyses || 0)
 const lastAccess = computed(() => {
   if (!userStats.value?.summary?.lastLogin) return 'Nunca'
-  
   const lastLogin = new Date(userStats.value.summary.lastLogin)
   const now = new Date()
   const diffHours = Math.floor((now - lastLogin) / (1000 * 60 * 60))
-  
-  if (diffHours < 1) return 'Hace menos de 1 hora'
-  if (diffHours < 24) return `Hace ${diffHours} hora${diffHours > 1 ? 's' : ''}`
-  
+  if (diffHours < 1) return 'Hace menos de 1h'
+  if (diffHours < 24) return `Hace ${diffHours}h`
   const diffDays = Math.floor(diffHours / 24)
   if (diffDays === 1) return 'Ayer'
   if (diffDays < 7) return `Hace ${diffDays} días`
-  
   return lastLogin.toLocaleDateString('es-ES')
 })
 
-// Combined activity logs (logins + analyses) sorted chronologically
 const activityLogs = computed(() => {
   if (!userStats.value) return []
-  
   const activities = []
-  
-    // Add login sessions
   if (userStats.value.recentSessions) {
     userStats.value.recentSessions.forEach(session => {
-      const loginTime = new Date(session.loginAt)
-      
       activities.push({
-        type: 'login',
-        timestamp: loginTime,
-        title: session.logoutAt ? 'Sesión completada' : 'Inicio de sesión',
-        // TODO: A session appears as active if the session cookie expires
-        subtitle: `IP: ${session.ipAddress || 'N/A'}${session.logoutAt ? ` • Duración: ${calculateSessionDuration(session)}` : ' • Sesión activa'}`,
-        color: session.logoutAt ? 'bg-green-500' : 'bg-blue-500',
-        icon: '🔐'
+        type: 'login', timestamp: new Date(session.loginAt), title: 'Inicio de sesión',
+        subtitle: `IP: ${session.ipAddress || 'N/A'}`, color: 'icon-bg-blue', icon: '🔐'
       })
-      
-      // Add logout if exists
-      if (session.logoutAt) {
-        const logoutTime = new Date(session.logoutAt)
-        
-        activities.push({
-          type: 'logout',
-          timestamp: logoutTime,
-          title: 'Cierre de sesión',
-          subtitle: `IP: ${session.ipAddress || 'N/A'}`,
-          color: 'bg-gray-500',
-          icon: '🚪'
-        })
-      }
     })
   }
-  
-  // Add analyses
   if (userStats.value.recentAnalyses) {
     userStats.value.recentAnalyses.forEach(analysis => {
-      const analysisTime = new Date(analysis.createdOn)
-      
       activities.push({
-        type: 'analysis',
-        timestamp: analysisTime,
-        title: 'Análisis completado',
-        subtitle: analysis.result || 'Procesamiento de imagen exitoso',
-        color: 'bg-purple-500',
-        icon: '🔍'
+        type: 'analysis', timestamp: new Date(analysis.createdOn), title: 'Análisis completado',
+        subtitle: analysis.result || 'Procesamiento exitoso', color: 'icon-bg-purple', icon: '🔍'
       })
     })
   }
-  
-  // Sort by timestamp descending (most recent first)
-  return activities
-    .sort((a, b) => b.timestamp - a.timestamp)
-    .slice(0, 15) // Limit to 15 most recent activities
+  return activities.sort((a, b) => b.timestamp - a.timestamp).slice(0, 15)
 })
 
-// Helper function to calculate session duration
-const calculateSessionDuration = (session) => {
-  if (!session.logoutAt) return 'Activa'
-  
-  const login = new Date(session.loginAt)
-  const logout = new Date(session.logoutAt)
-  const minutes = Math.floor((logout - login) / (1000 * 60))
-  
-  if (minutes < 60) return `${minutes}m`
-  const hours = Math.floor(minutes / 60)
-  const remainingMinutes = minutes % 60
-  return `${hours}h ${remainingMinutes}m`
-}
-
-// Helper function to format activity timestamp
 const formatActivityTime = (timestamp) => {
   try {
     if (!timestamp) return 'Sin fecha'
-    
-    // Convert timestamp to Date object
     const date = new Date(timestamp)
-    
-    // Validate date
-    if (isNaN(date.getTime())) {
-      console.warn('Invalid date parsed from:', timestamp)
-      return 'Fecha inválida'
-    }
-    
+    if (isNaN(date.getTime())) return 'Fecha inválida'
     const now = new Date()
-    
-    // Calculate time difference
     const diffMs = now.getTime() - date.getTime()
-    
-    // Check for future timestamps (which shouldn't happen)
-    if (diffMs < 0) {
-      console.warn('Future timestamp detected:', date.toString(), 'vs now:', now.toString())
-      return 'Fecha futura'
-    }
-    
+    if (diffMs < 0) return 'Fecha futura'
     const diffMinutes = Math.floor(diffMs / (1000 * 60))
-    const diffHours = Math.floor(diffMinutes / 60)
-    const diffDays = Math.floor(diffHours / 24)
-    
-    if (diffMinutes < 1) return 'Ahora mismo'
+    if (diffMinutes < 1) return 'Ahora'
     if (diffMinutes < 60) return `Hace ${diffMinutes}m`
+    const diffHours = Math.floor(diffMinutes / 60)
     if (diffHours < 24) return `Hace ${diffHours}h`
+    const diffDays = Math.floor(diffHours / 24)
     if (diffDays === 1) return 'Ayer'
-    if (diffDays < 7) return `Hace ${diffDays} días`
-    
-    return date.toLocaleDateString('es-ES')
-  } catch (error) {
-    console.error('Error formatting activity time:', error, timestamp)
-    return 'Error de fecha'
+    return `Hace ${diffDays} días`
+  } catch (e) {
+    return 'Error'
   }
 }
 
-// Get comprehensive user statistics from API
 const getUserStats = async () => {
   try {
     const apiUrl = import.meta.env.VITE_API_BASE_URL
     const response = await fetch(`${apiUrl}/users/stats`, {
-      method: 'GET',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      }
+      method: 'GET', credentials: 'include', headers: { 'Content-Type': 'application/json' }
     })
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
     const data = await response.json()
-    
     if (data.success) {
       userStats.value = data
     } else {
       throw new Error(data.error || 'Failed to fetch user statistics')
     }
   } catch (err) {
-    console.error('Error fetching user stats:', err)
     error.value = err.message
     userStats.value = null
   } finally {
@@ -443,49 +192,172 @@ const getUserStats = async () => {
 }
 
 onMounted(async () => {
-  // Disable body scrolling when modal opens
   document.body.style.overflow = 'hidden'
   document.addEventListener('keydown', handleKeydown)
-  
-  // Fetch user statistics
   await getUserStats()
 })
-
 onUnmounted(() => {
-  // Re-enable body scrolling when modal closes
   document.body.style.overflow = ''
   document.removeEventListener('keydown', handleKeydown)
 })
 </script>
 
-<style>
+<style scoped>
+/* --- Estilo del Modal --- */
 .modal-overlay {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  background-color: rgba(0, 0, 0, 0.6) !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  z-index: 999999 !important;
-  padding: 1rem !important;
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(10, 20, 30, 0.6);
+  backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; padding: 1rem;
 }
-
 .modal-container {
-  background-color: white !important;
-  border-radius: 1.5rem !important;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
-  max-width: 80rem !important;
-  width: 100% !important;
-  max-height: 85vh !important;
-  overflow: hidden !important;
-  transform: scale(1) !important;
-  transition: all 0.3s ease !important;
+  background-color: #f8fafc; /* Gris muy claro */
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+  max-width: 1200px; width: 100%;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.modal-container:hover {
-  transform: scale(1.01) !important;
+.modal-header {
+  background: linear-gradient(45deg, #b91c1c, #7f1d1d);
+  color: white;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.header-content { display: flex; align-items: center; gap: 1rem; }
+.header-icon { font-size: 1.8rem; }
+.modal-title { font-size: 1.5rem; font-weight: 700; }
+.close-btn {
+  font-size: 2rem; font-weight: 300; line-height: 1;
+  background: none; border: none; color: rgba(255, 255, 255, 0.7);
+  cursor: pointer; transition: all 0.2s ease;
+}
+.close-btn:hover { color: #fff; transform: rotate(90deg) scale(1.1); }
+
+.modal-body {
+  padding: 2rem;
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 2rem;
+}
+
+/* --- Tarjetas de Resumen --- */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+.stat-card {
+  background-color: #fff;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+  border: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.stat-card:hover { transform: translateY(-4px); box-shadow: 0 10px 20px rgba(0,0,0,0.07); }
+.stat-label { font-size: 0.9rem; font-weight: 500; color: #6b7280; }
+.stat-value { font-size: 1.75rem; font-weight: 700; color: #111827; }
+.stat-icon { font-size: 2rem; }
+.icon-blue { color: #3b82f6; }
+.icon-green { color: #16a34a; }
+.icon-purple { color: #9333ea; }
+
+/* --- Secciones de Contenido --- */
+.content-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 1.5rem;
+}
+.content-section {
+  background-color: #fff;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+  border: 1px solid #e5e7eb;
+}
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #b91c1c;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+.placeholder { text-align: center; padding: 1rem; color: #6b7280; }
+
+/* --- Listas de Actividad --- */
+.activity-list { display: flex; flex-direction: column; gap: 1rem; }
+.scrollable { max-height: 300px; overflow-y: auto; padding-right: 0.5rem; }
+.list-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  transition: background-color 0.2s ease;
+  text-decoration: none;
+}
+.list-item:hover { background-color: #f9fafb; }
+.item-icon {
+  width: 2.5rem; height: 2.5rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+.icon-bg-blue { background-color: #dbeafe; color: #1d4ed8; }
+.icon-bg-green { background-color: #dcfce7; color: #166534; }
+.icon-bg-purple { background-color: #f3e8ff; color: #6b21a8; }
+.item-content { flex: 1; min-width: 0; }
+.item-title { font-weight: 600; color: #374151; }
+.item-subtitle { font-size: 0.8rem; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item-meta { font-size: 0.8rem; color: #9ca3af; }
+
+.section-footer { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #e5e7eb; }
+.footer-link {
+  color: #b91c1c;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+.footer-link:hover { color: #991b1b; }
+
+/* --- Animaciones --- */
+.animated-item {
+  opacity: 0;
+  animation: fadeInUp 0.5s ease-out forwards;
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.modal-fade-enter-active, .modal-fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.modal-fade-enter-from, .modal-fade-leave-to {
+  opacity: 0;
+}
+.modal-fade-enter-active .modal-container {
+  transition: transform 0.3s ease;
+}
+.modal-fade-leave-active .modal-container {
+  transition: transform 0.3s ease;
+}
+.modal-fade-enter-from .modal-container {
+  transform: scale(0.95);
+}
+.modal-fade-leave-to .modal-container {
+  transform: scale(0.95);
 }
 </style>

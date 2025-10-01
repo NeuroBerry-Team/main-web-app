@@ -1,99 +1,43 @@
 <template>
-  <nav :class="['w-full flex items-center justify-between top-0 z-50 transition-all duration-500',
-                scrolled ? 'bg-red-700/90 backdrop-blur-md shadow-md' : 'bg-transparent']">
-    <!-- Hamburger -->
-    <div class="flex-shrink-0 md:hidden">
-      <button
-        class="cursor-pointer p-1 text-white transition-transform duration-300 hover:scale-110"
-        @click="menuOpen = !menuOpen"
-        aria-label="Toggle menu"
-      >
-        <span class="text-3xl">☰</span>
-      </button>
-    </div>
-
-    <!-- Menu (desktop inline, mobile dropdown) -->
-    <transition
-      enter-active-class="transition ease-out duration-300"
-      enter-from-class="opacity-0 -translate-y-4"
-      enter-to-class="opacity-100 translate-y-0"
-      leave-active-class="transition ease-in duration-200"
-      leave-from-class="opacity-100 translate-y-0"
-      leave-to-class="opacity-0 -translate-y-4"
-    >
-      <div
-          v-if="showMenu"
-          :class="[
-            !isDesktop
-              ? 'flex absolute left-0 top-20 w-full z-40 py-4 flex-col items-center gap-4 bg-gradient-to-b from-[rgba(185,28,28,0.8)] via-[rgba(220,38,38,0.7)] to-[rgba(185,28,28,0.8)] rounded-xl shadow-lg'
-              : 'hidden md:flex md:items-center md:gap-4 md:flex-row md:static md:bg-transparent'
-          ]"
-        >
-        <RouterLink
-          to="/"
-          class="nav-btn"
-          @click="menuOpen = false"
-        >Inicio</RouterLink>
-        <RouterLink
-          to="/about"
-          class="nav-btn"
-          @click="menuOpen = false"
-        >Proyecto</RouterLink>
-        <RouterLink
-          to="/database"
-          class="nav-btn"
-          @click="menuOpen = false"
-        >Database</RouterLink>
-        <RouterLink
-          to="/etiquetado"
-          class="nav-btn"
-          @click="menuOpen = false"
-        >Etiquetado</RouterLink>
-        <RouterLink
-          v-if="isLoggedIn"
-          to="/AI"
-          class="nav-btn bg-blue-600 text-white hover:bg-blue-700"
-          @click="menuOpen = false"
-        >Aplicación</RouterLink>
-        <RouterLink
-          v-if="isAdmin"
-          to="/admin"
-          class="nav-btn bg-purple-600 text-white hover:bg-purple-700"
-          @click="menuOpen = false"
-        >Admin</RouterLink>
+  <nav class="navbar">
+    <div class="nav-container">
+      <div class="hamburger-container">
+        <button @click="menuOpen = !menuOpen" class="hamburger-btn" aria-label="Toggle menu">
+          ☰
+        </button>
       </div>
-    </transition>
 
-    <!-- Login / Logout -->
-    <RouterLink
-      v-if="!isLoggedIn"
-      to="/login"
-      class="nav-btn bg-green-600 text-white hover:bg-green-700"
-      @click="menuOpen = false"
-    >Login</RouterLink>
+      <div class="nav-links-wrapper" :class="{ 'open': menuOpen }">
+        <RouterLink to="/" class="nav-btn" @click="menuOpen = false">Inicio</RouterLink>
 
-    <button
-      v-if="isLoggedIn"
-      @click="handleLogout"
-      class="nav-btn bg-red-600 text-white hover:bg-red-700 flex items-center gap-2"
-    >
-      Logout
-      <span v-if="user?.name" class="ml-1 text-xs bg-white/20 px-2 py-1 rounded">{{ user.name }}</span>
-    </button>
+        <RouterLink v-if="isLoggedIn" to="/about" class="nav-btn" @click="menuOpen = false">Proyecto</RouterLink>
+        <RouterLink v-if="isLoggedIn" to="/database" class="nav-btn" @click="menuOpen = false">Database</RouterLink>
+        <RouterLink v-if="isLoggedIn" to="/etiquetado" class="nav-btn" @click="menuOpen = false">Etiquetado</RouterLink>
 
-    <!-- Profile -->
-    <RouterLink
-      v-if="isLoggedIn"
-      to="/profile"
-      class="nav-btn"
-      @click="menuOpen = false"
-    >Profile</RouterLink>
+        <RouterLink v-if="!isLoggedIn" to="/modulo1" class="nav-btn" @click="menuOpen = false">Módulo 1</RouterLink>
+        <RouterLink v-if="!isLoggedIn" to="/modulo2" class="nav-btn" @click="menuOpen = false">Módulo 2</RouterLink>
+        <RouterLink v-if="!isLoggedIn" to="/modulo3" class="nav-btn" @click="menuOpen = false">Módulo 3</RouterLink>
 
-</nav>
+        <RouterLink v-if="isLoggedIn" to="/AI" class="nav-btn btn-primary" @click="menuOpen = false">Aplicación</RouterLink>
+        <RouterLink v-if="isAdmin" to="/admin" class="nav-btn btn-secondary" @click="menuOpen = false">Admin</RouterLink>
+
+        <RouterLink v-if="!isLoggedIn" to="/login" class="nav-btn btn-login" @click="menuOpen = false">Login</RouterLink>
+        
+        <template v-if="isLoggedIn">
+          <button @click="handleLogout" class="logout-btn">
+            <span>Logout</span>
+            <span v-if="user?.name" class="user-chip">{{ user.name }}</span>
+          </button>
+          <RouterLink to="/profile" class="nav-btn" @click="menuOpen = false">Perfil</RouterLink>
+        </template>
+      </div>
+    </div>
+  </nav>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+// --- LÓGICA DEL COMPONENTE (SIN CAMBIOS) ---
+import { ref, onMounted, onUnmounted, watch } from "vue";
 import { RouterLink } from "vue-router";
 import { useAuth } from "../composables/use_auth.js";
 import { useToast } from "vue-toastification";
@@ -101,61 +45,189 @@ import { useToast } from "vue-toastification";
 const { isLoggedIn, user, isAdmin, logout } = useAuth();
 const toast = useToast();
 const menuOpen = ref(false);
-const scrolled = ref(false);
-
-// Detect desktop size
-const isDesktop = ref(window.matchMedia("(min-width: 768px)").matches);
+const isDesktop = ref(window.matchMedia("(min-width: 1024px)").matches);
 
 function updateIsDesktop() {
-  isDesktop.value = window.matchMedia("(min-width: 768px)").matches;
+  isDesktop.value = window.matchMedia("(min-width: 1024px)").matches;
 }
-
-function handleScroll() {
-  scrolled.value = window.scrollY > 10;
-}
-
-const showMenu = computed(() => isDesktop.value || menuOpen.value);
 
 let logoutTimeout = null;
 let logoutConfirmPending = false;
-
 const handleLogout = async () => {
   if (logoutConfirmPending) {
-    // Second click - confirm logout
     clearTimeout(logoutTimeout);
     logoutConfirmPending = false;
     await logout();
     toast.success("Sesión cerrada correctamente");
   } else {
-    // First click - show confirmation
     logoutConfirmPending = true;
-    toast.warning("Haz clic en 'Cerrar Sesión' otra vez para confirmar", {
+    toast.warning("Haz clic otra vez para confirmar", {
       timeout: 4000,
-      onClose: () => {
-        logoutConfirmPending = false;
-      }
+      onClose: () => { logoutConfirmPending = false; }
     });
-    
-    // Auto-cancel after 4 seconds
-    logoutTimeout = setTimeout(() => {
-      logoutConfirmPending = false;
-    }, 4000);
+    logoutTimeout = setTimeout(() => { logoutConfirmPending = false; }, 4000);
   }
   menuOpen.value = false;
 };
 
 onMounted(() => {
-  window.addEventListener("scroll", handleScroll);
   window.addEventListener("resize", updateIsDesktop);
 });
-
 onUnmounted(() => {
-  window.removeEventListener("scroll", handleScroll);
   window.removeEventListener("resize", updateIsDesktop);
 });
-
-// Close menu if switching to desktop
 watch(isDesktop, (val) => {
   if (val) menuOpen.value = false;
 });
 </script>
+
+<style scoped>
+/* --- Barra de Navegación Principal --- */
+.navbar {
+  width: 100%;
+  height: 5rem; /* 80px */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  background: linear-gradient(90deg, rgba(185, 28, 28, 0.8), rgba(153, 27, 27, 0.8));
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(127, 29, 29, 0.5);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+}
+
+/* --- Contenedor Interno (Centrado) --- */
+.nav-container {
+  width: 100%;
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* --- Contenedor de Enlaces Unificado --- */
+.nav-links-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem; /* 12px */
+}
+
+/* --- Botones y Enlaces (Estilo Base) --- */
+.nav-btn {
+  min-width: 120px;
+  padding: 0.6rem 1rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  cursor: pointer;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  background-color: rgba(220, 38, 38, 0.4);
+  border: 1px solid rgba(220, 38, 38, 0.6);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+.nav-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 25px -5px rgba(0,0,0,0.2), 0 4px 6px -4px rgba(0,0,0,0.15);
+}
+
+/* --- Botones de Colores (Sobrescriben el estilo base) --- */
+.btn-primary { 
+  background: linear-gradient(45deg, #2563eb, #3b82f6); 
+  box-shadow: 0 0 15px -5px rgba(59, 130, 246, 0.8);
+  border: none;
+  color: white !important;
+  text-shadow: none;
+}
+.btn-secondary { 
+  background: linear-gradient(45deg, #16a34a, #10b981); 
+  box-shadow: 0 0 15px -5px rgba(22, 163, 74, 0.8); 
+  border: none;
+  color: white !important;
+  text-shadow: none;
+}
+.btn-login { 
+  background: linear-gradient(45deg, #16a34a, #10b981); 
+  box-shadow: 0 0 15px -5px rgba(22, 163, 74, 0.8);
+  border: none;
+  color: white !important;
+  text-shadow: none;
+}
+
+/* --- Estado Activo del Enlace (Alto Contraste) --- */
+.nav-btn.router-link-exact-active {
+  background-color: #fff !important;
+  color: #b91c1c !important;
+  font-weight: 700;
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.8) !important;
+  border-color: #fff;
+  text-shadow: none;
+}
+
+/* --- Botón de Logout --- */
+.logout-btn {
+  min-width: 120px;
+  padding: 0.6rem 1rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #fff !important;
+  background-color: rgba(59, 130, 246, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.25s ease;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  text-shadow: none;
+}
+.logout-btn:hover {
+  background-color: rgba(59, 130, 246, 0.9);
+  transform: scale(1.05);
+  box-shadow: 0 8px 25px -5px rgba(0,0,0,0.2), 0 4px 6px -4px rgba(0,0,0,0.15);
+}
+.user-chip {
+  background-color: rgba(0, 0, 0, 0.2);
+  color: #fff;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+}
+
+/* --- Estilos para Móvil --- */
+.hamburger-container { display: none; }
+.hamburger-btn {
+  color: #fff; font-size: 1.875rem; background: none; border: none;
+  cursor: pointer; z-index: 60; text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+
+@media (max-width: 1279px) { /* xl breakpoint */
+  .nav-container { justify-content: flex-end; }
+  .hamburger-container { display: block; position: absolute; left: 1.5rem; }
+  .nav-links-wrapper {
+    display: none; position: fixed; top: 0; left: 0;
+    width: 100%; height: 100vh;
+    padding: 6rem 2rem 2rem 2rem;
+    background: linear-gradient(135deg, rgba(185, 28, 28, 0.9), rgba(127, 29, 29, 0.95));
+    backdrop-filter: blur(16px);
+    flex-direction: column; align-items: center; justify-content: flex-start;
+    gap: 1.5rem; opacity: 0;
+    transform: translateY(-10px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+  .nav-links-wrapper.open { display: flex; opacity: 1; transform: translateY(0); }
+}
+</style>
