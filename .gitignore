@@ -36,3 +36,4 @@ coverage
 initPg.sh
 
 datasets/
+logs/app-flask-errors.log
