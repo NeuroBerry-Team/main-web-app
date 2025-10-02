@@ -1,7 +1,7 @@
 <template>
   <div class="page-wrapper">
     <section class="hero-section">
-      <h1 class="hero-title animated-item" style="animation-delay: 0.1s;">Módulo II: Sistemas Inteligentes</h1>
+      <h1 class="hero-title animated-item" style="animation-delay: 0.1s;">Sistemas Inteligentes</h1>
       <p class="hero-text animated-item" style="animation-delay: 0.2s;">
         El núcleo de NeuroBerry: una Inteligencia Artificial entrenada para ver y entender la madurez de las frambuesas como un experto.
       </p>
