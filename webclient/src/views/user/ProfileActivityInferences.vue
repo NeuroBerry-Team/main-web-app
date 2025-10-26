@@ -83,6 +83,7 @@
                     :src="getCachedImageUrl(inference.baseImageUrl)"
                     :alt="inference.result"
                     class="w-full h-full object-cover transition-opacity duration-300"
+                    crossorigin="use-credentials"
                     @error="handleImageError"
                     @load="onImageLoad(inference)"
                     loading="lazy"
@@ -176,6 +177,7 @@
                     :src="selectedInference.baseImageUrl"
                     :alt="selectedInference.name || 'Imagen original'"
                     class="w-full h-64 object-contain rounded-lg transition-all duration-300 bg-gray-50"
+                    crossorigin="use-credentials"
                     @error="handleImageError"
                     loading="lazy"
                   />
@@ -366,6 +368,7 @@
                       class="hidden"
                       @load="onImageLoad"
                       @error="handleImageError"
+                      crossorigin="use-credentials"
                     />
                     
                     <!-- Canvas for drawing boxes -->
@@ -390,6 +393,7 @@
                       :alt="'Análisis: ' + selectedInference.result"
                       class="w-full max-h-[600px] mx-auto rounded-lg object-contain bg-gray-50"
                       @error="handleImageError"
+                      crossorigin="use-credentials"
                     />
                     
                     <div v-else class="w-full h-64 flex items-center justify-center text-gray-500">

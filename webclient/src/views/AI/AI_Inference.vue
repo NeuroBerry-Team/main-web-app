@@ -327,6 +327,7 @@
               ref="hiddenImage"
               @load="onImageLoad"
               @error="handleImageError"
+              crossorigin="use-credentials"
               style="display: none;"
             />
             
@@ -336,6 +337,7 @@
               :src="currentResultImage" 
               alt="Resultado del análisis" 
               class="w-full max-h-[600px] mx-auto rounded-lg object-contain"
+              crossorigin="use-credentials"
             />
             
             <!-- Show canvas (image + boxes) in box control mode -->
