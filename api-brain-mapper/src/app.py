@@ -89,23 +89,6 @@ def create_app():
     app.config['CORS_EXPOSE_HEADERS'] = ['Content-Type']
     app.config['CORS_SUPPORTS_CREDENTIALS'] = True
     
-    # for dynamic Cloudflare tunnels
-    def is_allowed_origin(origin):
-        """Check if origin is allowed, including wildcard Cloudflare tunnels"""
-        if not origin:
-            return False
-            
-        # Check exact matches first
-        if origin in allowed_origins:
-            return True
-            
-        # Allow Cloudflare tunnels if enabled
-        if allow_cloudflare_tunnels:
-            if origin.startswith('https://') and origin.endswith('.trycloudflare.com'):
-                return True
-                
-        return False
-    
     # CORS configuration
     if os.getenv('ENV_MODE') == 'production':
         # Production origins
@@ -120,6 +103,8 @@ def create_app():
         
         allow_cloudflare_tunnels = True # TODO: Add a env to toggle
         if allow_cloudflare_tunnels:
+            # Add regex pattern for any cloudflare tunnel subdomain
+            allowed_origins.append(r'https://.*\.trycloudflare\.com')
             print("Production mode: Cloudflare tunnels enabled for CORS")
             
     else:
@@ -130,14 +115,14 @@ def create_app():
             "http://localhost:3003",
             "http://127.0.0.1:5173",
             "http://127.0.0.1:3000",
-            "http://127.0.0.1:3003"
+            "http://127.0.0.1:3003",
+            r'https://.*\.trycloudflare\.com'
         ]
         
-        allow_cloudflare_tunnels = True
         print("Development mode: Allowing all *.trycloudflare.com subdomains for CORS")
     
     CORS(app,
-         resources={r"/*": {"origins": is_allowed_origin}},
+         resources={r"/*": {"origins": allowed_origins}},
          supports_credentials=True,
          expose_headers=['Content-Type'])
 
