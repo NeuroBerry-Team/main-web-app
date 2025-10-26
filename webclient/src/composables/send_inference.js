@@ -16,57 +16,16 @@ export function useInference() {
     const apiUrl = import.meta.env.VITE_API_BASE_URL;
 
     try {
-      debug.value += '\nSoliciting presigned URL...';
-      const presignedRes = await makeSecureRequest(`${apiUrl}/inferences/getBaseImgPresignedUrls`, {
-        method: 'GET'
-      });
-      
-      debug.value += `\nPresigned response: status ${presignedRes.status}`;
-      
-      if (!presignedRes.ok) {
-        if (presignedRes.status === 401) {
-          throw new Error('Authentication required. Please login again.');
-        } else if (presignedRes.status === 403) {
-          throw new Error('Access denied. You do not have permission for this action.');
-        } else {
-          throw new Error(`Error getting upload URL: ${presignedRes.status}`);
-        }
-      }
+      const formData = new FormData();
+      formData.append('image', selectedFile);
+      formData.append('name', selectedFile.name);
+      formData.append('modelId', modelId);
 
-      const presignedText = await presignedRes.text();
-      debug.value += `\nPresigned response (raw): ${presignedText}`;
-      
-      let uploadURL, liveURL, imgObjectKey;
-      try {
-        ({ uploadURL, liveURL, imgObjectKey } = JSON.parse(presignedText));
-      } catch (e) {
-        throw new Error('Invalid response from server');
-      }
-
-      debug.value += '\nUploading image to MinIO...';
-      const uploadRes = await fetch(uploadURL, {
-        method: 'PUT',
-        body: selectedFile,
-        headers: { 'Content-Type': selectedFile.type }
-      });
-      
-      debug.value += `\nUpload response: status ${uploadRes.status}`;
-      if (!uploadRes.ok) {
-        throw new Error('Error uploading image to storage');
-      }
-
-      const payload = {
-        name: selectedFile.name,
-        imgUrl: liveURL,
-        imgObjectKey: imgObjectKey,
-        modelId: modelId
-      };
-      debug.value += `\nSending payload to backend: ${JSON.stringify(payload, null, 2)}`;
+      debug.value += '\nSending image to backend...';
 
       const inferRes = await makeSecureRequest(`${apiUrl}/inferences/generateInference`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: formData
       });
       
       debug.value += `\nInference response: status ${inferRes.status}`;
@@ -83,7 +42,7 @@ export function useInference() {
       
       const inferData = await inferRes.json();
       result.value = inferData;
-      debug.value += `\nInference data: ${JSON.stringify(inferData, null, 2)}`;
+      debug.value += `\nInference completed successfully!`;
       
     } catch (err) {
       error.value = err.message;

@@ -33,65 +33,22 @@ inferences = Blueprint("inferences", __name__, url_prefix="/inferences")
 
 
 # ------- All the routes -------
-@inferences.route("/getBaseImgPresignedUrls", methods=["GET"])
-@auth_required()
-@rate_limit_file_upload(max_attempts=10, window_minutes=60)
-def getBaseImgPresignedUrls():
-    # Instantiate a minio client
-    minioClient = getMinioClient()
-
-    # Creates unique foldername
-    folderName = str(uuid.uuid4().hex)
-
-    # Configure s3 constants for inferences bucket
-    s3Bucket = os.getenv("S3_BUCKET_INFERENCES_RESULTS")
-    s3LiveUrl = os.getenv("S3_LIVE_BASE_URL") + s3Bucket
-    presignedExpTime = int(os.getenv("S3_PRESIGNED_EXPIRATION"))
-
-    # Generate live and upload urls for the image
-    try:
-        # Include user ID for security
-        imgObjectKey = f"{g.uid}/{folderName}/original_img.jpg"
-        imgLiveUrl = f"{s3LiveUrl}/{imgObjectKey}"
-        logger.info(f"Generating presigned URL for user {g.uid}: {imgLiveUrl}")
-
-        imgUploadUrl = minioClient.presigned_put_object(
-            s3Bucket, imgObjectKey, expires=datetime.timedelta(seconds=presignedExpTime)
-        )
-
-    except Exception:
-        logger.exception("Presigned S3 error")
-        abort(500, "Error getting presigned url for img")
-
-    # Setup response data
-    file_security = FileUploadSecurity.ALLOWED_EXTENSIONS["image"]
-    allowed_extensions = file_security["extensions"]
-    responseData = {
-        "uploadURL": imgUploadUrl,
-        "liveURL": imgLiveUrl,
-        "imgObjectKey": imgObjectKey,
-        "maxFileSize": FileUploadSecurity.MAX_FILE_SIZES["image"],
-        "allowedExtensions": allowed_extensions,
-    }
-
-    return jsonify(responseData), 200
-
-
 @inferences.route("/generateInference", methods=["POST"])
 @auth_required()
 @rate_limit_api(max_attempts=5, window_minutes=10)
 def generateInference():
-    if os.getenv("ENV_MODE") != "production":
-        logger.debug(f"[INFERENCE DEBUG] Request data: {request.get_json()}")
+    # Get form data
+    img_file = request.files.get("image")
+    model_id = request.form.get("modelId", "1")
+    name = request.form.get("name", "unnamed")
 
-    # Validate request structure
-    req = InputValidator.validate_json_request(
-        request, ["name", "imgUrl", "imgObjectKey"]
-    )
+    # Validate model_id
+    try:
+        model_id = int(model_id)
+    except (ValueError, TypeError):
+        abort(400, "Invalid model ID")
 
-    # Get optional modelId, default to 1 if not provided
-    model_id = req.get("modelId", 1)
-    if not isinstance(model_id, int) or model_id <= 0:
+    if model_id <= 0:
         abort(400, "Invalid model ID")
 
     # Validate that the model exists in the database
@@ -99,60 +56,31 @@ def generateInference():
     if not model:
         abort(404, "Model not found")
 
-    if os.getenv("ENV_MODE") != "production":
-        logger.debug(f"[INFERENCE DEBUG] Validated request: {req}")
-
     # Validate and sanitize inputs
-    name = InputValidator.sanitize_string(req["name"], max_length=200)
-    if os.getenv("ENV_MODE") != "production":
-        logger.debug(f"[INFERENCE DEBUG] Validated name: {name}")
+    name = InputValidator.sanitize_string(name, max_length=200)
 
-    baseImageUrl = InputValidator.sanitize_string(req["imgUrl"], max_length=500)
-    if os.getenv("ENV_MODE") != "production":
-        logger.debug(f"[INFERENCE DEBUG] Validated imgUrl: {baseImageUrl}")
+    # Validate image
+    if not img_file:
+        abort(400, "Image file is required")
 
-    imgObjectKey = InputValidator.sanitize_string(req["imgObjectKey"], max_length=500)
-    if os.getenv("ENV_MODE") != "production":
-        logger.debug(f"[INFERENCE DEBUG] Validated imgObjectKey: {imgObjectKey}")
+    image_data = img_file.read()
 
-    # Validate that imgObjectKey belongs to the authenticated user
-    expected_prefix = f"{g.uid}/"
-    if os.getenv("ENV_MODE") != "production":
-        logger.debug(f"[INFERENCE DEBUG] Expected prefix: {expected_prefix}")
-        logger.debug(
-            f"[INFERENCE DEBUG] ObjectKey starts with prefix: {imgObjectKey.startswith(expected_prefix)}"
-        )
+    try:
+        FileUploadSecurity.validate_file_type(name, image_data, "image")
+        FileUploadSecurity.validate_file_size(image_data, "image")
+    except ValueError as e:
+        abort(400, str(e))
 
-    if not imgObjectKey.startswith(expected_prefix):
-        abort(403, "Access denied to image resource")
+    # Generate unique folder and object keys
+    folder_name = str(uuid.uuid4().hex)
+    imgObjectKey = f"{g.uid}/{folder_name}/original_img.jpg"
+    result_object_key = f"{g.uid}/{folder_name}/inference_result.jpg"
+    metadata_object_key = f"{g.uid}/{folder_name}/metadata.json"
 
-    # Validate that imgUrl is from expected bucket
-    expected_bucket = os.getenv("S3_BUCKET_INFERENCES_RESULTS")
-    expected_base_url = os.getenv("S3_LIVE_BASE_URL") + expected_bucket
-    if os.getenv("ENV_MODE") != "production":
-        logger.debug(f"[INFERENCE DEBUG] Expected bucket: {expected_bucket}")
-        logger.debug(f"[INFERENCE DEBUG] Expected base URL: {expected_base_url}")
-        logger.debug(
-            f"[INFERENCE DEBUG] URL starts with base: {baseImageUrl.startswith(expected_base_url)}"
-        )
-
-    if not baseImageUrl.startswith(expected_base_url):
-        abort(400, "Invalid image URL")
-
-    # Download image from S3 and send to NN API
+    # Send to NN API
     try:
         # Get the name of the model. NN API needs it to switch models.
         model_name = model.name
-
-        # Download image from S3/Minio
-        minioClient = getMinioClient()
-        s3Bucket = os.getenv("S3_BUCKET_INFERENCES_RESULTS")
-
-        logger.info(f"Downloading image from S3: {imgObjectKey}")
-        image_response = minioClient.get_object(s3Bucket, imgObjectKey)
-        image_data = image_response.read()
-        image_response.close()
-        image_response.release_conn()
 
         logger.info(
             f"Generating inference for user {g.uid}: {imgObjectKey} with model {model_name}"
@@ -167,19 +95,26 @@ def generateInference():
         result_image_b64 = json_response["result_image"]
         metadata = json_response["metadata"]
 
-        # Decode base64 image
         import base64
 
         result_image_data = base64.b64decode(result_image_b64)
 
-        # Upload result image to S3
-        folder_name = imgObjectKey.split("/")[1]  # Extract folder from object key
-        result_object_key = f"{g.uid}/{folder_name}/inference_result.jpg"
-        metadata_object_key = f"{g.uid}/{folder_name}/metadata.json"
-
-        # Upload result image
+        # Upload images and metadata to MinIO
         from io import BytesIO
 
+        minioClient = getMinioClient()
+        s3Bucket = os.getenv("S3_BUCKET_INFERENCES_RESULTS")
+
+        # Upload original image
+        minioClient.put_object(
+            s3Bucket,
+            imgObjectKey,
+            BytesIO(image_data),
+            length=len(image_data),
+            content_type="image/jpeg",
+        )
+
+        # Upload inference result image
         minioClient.put_object(
             s3Bucket,
             result_object_key,
@@ -202,6 +137,7 @@ def generateInference():
 
         # Generate URLs for the uploaded files
         s3LiveBaseUrl = os.getenv("S3_LIVE_BASE_URL") + s3Bucket
+        baseImageUrl = f"{s3LiveBaseUrl}/{imgObjectKey}"
         generatedImageUrl = f"{s3LiveBaseUrl}/{result_object_key}"
         metadataUrl = f"{s3LiveBaseUrl}/{metadata_object_key}"
 
@@ -211,14 +147,14 @@ def generateInference():
 
     user_id = getattr(g, "uid", None)
 
-    # Make new instance of inference model
+    # Create new inference record
     new_inference = Inference(
         userId=user_id,
-        modelId=model_id,  # Use the selected model ID
+        modelId=model_id,
         name=name,
         baseImageUrl=baseImageUrl,
         generatedImageUrl=generatedImageUrl,
-        metadataUrl=metadataUrl,  # Add the metadata URL to the database
+        metadataUrl=metadataUrl,
         createdOn=datetime.datetime.utcnow(),
     )
 
@@ -230,13 +166,30 @@ def generateInference():
         logger.exception(f"Error saving in DB inference of {imgObjectKey}")
         abort(500, "Error while saving inference")
 
-    # Respond with the generatedImageUrl and id
+    # Respond with the generated data
+    try:
+        presigned_base_url = minioClient.presigned_get_object(
+            s3Bucket,
+            imgObjectKey,
+            expires=datetime.timedelta(hours=24)
+        )
+        presigned_generated_url = minioClient.presigned_get_object(
+            s3Bucket,
+            result_object_key,
+            expires=datetime.timedelta(hours=24)
+        )
+    except Exception as e:
+        logger.warning(f"Failed to generate presigned URLs: {str(e)}")
+        presigned_base_url = baseImageUrl
+        presigned_generated_url = generatedImageUrl
+    
     return (
         jsonify(
             {
-                "generatedImgUrl": generatedImageUrl,
+                "success": True,
+                "generatedImgUrl": presigned_generated_url,
+                "baseImageUrl": presigned_base_url,
                 "id": new_inference.id,
-                "baseImageUrl": baseImageUrl,
             }
         ),
         200,
