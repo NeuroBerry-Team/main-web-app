@@ -21,15 +21,16 @@ def get_proxy_image_url(inference_id, image_type):
     """
     Generate backend proxy URL for images instead of direct S3 URLs.
     This ensures images can be accessed even when MinIO is not publicly accessible.
-    
+
     Args:
         inference_id: The ID of the inference
         image_type: 'original' or 'result'
-    
+
     Returns:
         Proxy URL string
     """
-    api_base_url = os.getenv("API_BASE_URL", "http://localhost:5000")
+
+    api_base_url = os.getenv("API_BASE_URL") or "http://localhost:5000"
     return f"{api_base_url}/inferences/{inference_id}/image/{image_type}"
 
 
@@ -228,8 +229,12 @@ def get_user_inferences():
                             "id": inference.id,
                             "name": inference.name,
                             "result": getattr(inference, "result", inference.name),
-                            "baseImageUrl": get_proxy_image_url(inference.id, "original"),
-                            "generatedImageUrl": get_proxy_image_url(inference.id, "result"),
+                            "baseImageUrl": get_proxy_image_url(
+                                inference.id, "original"
+                            ),
+                            "generatedImageUrl": get_proxy_image_url(
+                                inference.id, "result"
+                            ),
                             "metadataUrl": inference.metadataUrl,
                             "createdOn": inference.createdOn.isoformat() + "Z",
                             "modelId": inference.modelId,
@@ -272,8 +277,12 @@ def get_user_inferences():
                             "id": inference.id,
                             "name": inference.name,
                             "result": getattr(inference, "result", inference.name),
-                            "baseImageUrl": get_proxy_image_url(inference.id, "original"),
-                            "generatedImageUrl": get_proxy_image_url(inference.id, "result"),
+                            "baseImageUrl": get_proxy_image_url(
+                                inference.id, "original"
+                            ),
+                            "generatedImageUrl": get_proxy_image_url(
+                                inference.id, "result"
+                            ),
                             "metadataUrl": inference.metadataUrl,
                             "createdOn": inference.createdOn.isoformat() + "Z",
                             "modelId": inference.modelId,
@@ -315,13 +324,15 @@ def update_profile():
     """
     try:
         # Validate JSON request and required fields
-        data = InputValidator.validate_json_request(request, ["name", "lastName", "email"])
+        data = InputValidator.validate_json_request(
+            request, ["name", "lastName", "email"]
+        )
 
         # Get current user
         stmt = select(User).where(User.id == g.uid)
         result = db.session.execute(statement=stmt)
         user = result.scalar_one_or_none()
-        
+
         if not user:
             return jsonify({"success": False, "message": "User not found"}), 404
 
@@ -335,30 +346,38 @@ def update_profile():
             stmt = select(User).where(User.email == email)
             result = db.session.execute(statement=stmt)
             existing_user = result.scalar_one_or_none()
-            
+
             if existing_user:
-                return jsonify({"success": False, "message": "Email is already in use"}), 400
+                return (
+                    jsonify({"success": False, "message": "Email is already in use"}),
+                    400,
+                )
 
         # Update user information
         user.name = name
         user.lastName = last_name
         user.email = email
-        
+
         db.session.commit()
-        
+
         logger.info(f"User {g.uid} updated their profile information")
-        
-        return jsonify({
-            "success": True,
-            "message": "Profile updated successfully",
-            "user": {
-                "id": user.id,
-                "name": user.name,
-                "lastName": user.lastName,
-                "email": user.email,
-                "role": user.role.name
-            }
-        }), 200
+
+        return (
+            jsonify(
+                {
+                    "success": True,
+                    "message": "Profile updated successfully",
+                    "user": {
+                        "id": user.id,
+                        "name": user.name,
+                        "lastName": user.lastName,
+                        "email": user.email,
+                        "role": user.role.name,
+                    },
+                }
+            ),
+            200,
+        )
 
     except Exception as e:
         logger.exception(f"Error updating profile for user {g.uid}: {str(e)}")
@@ -374,8 +393,10 @@ def change_password():
     """
     try:
         # Validate JSON request and required fields
-        data = InputValidator.validate_json_request(request, ["currentPassword", "newPassword"])
-        
+        data = InputValidator.validate_json_request(
+            request, ["currentPassword", "newPassword"]
+        )
+
         current_password = data["currentPassword"]
         new_password = data["newPassword"]
 
@@ -383,13 +404,16 @@ def change_password():
         stmt = select(User).where(User.id == g.uid)
         result = db.session.execute(statement=stmt)
         user = result.scalar_one_or_none()
-        
+
         if not user:
             return jsonify({"success": False, "message": "User not found"}), 404
 
         # Verify current password
         if not checkPasswordHash(user.password, current_password):
-            return jsonify({"success": False, "message": "Current password is incorrect"}), 400
+            return (
+                jsonify({"success": False, "message": "Current password is incorrect"}),
+                400,
+            )
 
         # Validate new password using InputValidator
         new_password = InputValidator.validate_password(new_password)
@@ -397,13 +421,13 @@ def change_password():
         # Update password
         user.password = hashPassword(new_password)
         db.session.commit()
-        
+
         logger.info(f"User {g.uid} changed their password")
-        
-        return jsonify({
-            "success": True,
-            "message": "Password changed successfully"
-        }), 200
+
+        return (
+            jsonify({"success": True, "message": "Password changed successfully"}),
+            200,
+        )
 
     except Exception as e:
         logger.exception(f"Error changing password for user {g.uid}: {str(e)}")
@@ -422,33 +446,40 @@ def delete_account():
         stmt = select(User).where(User.id == g.uid)
         result = db.session.execute(statement=stmt)
         user = result.scalar_one_or_none()
-        
+
         if not user:
             return jsonify({"success": False, "message": "User not found"}), 404
 
         # Prevent deletion of SUPERADMIN accounts
-        if user.role.name == 'SUPERADMIN':
-            return jsonify({
-                "success": False,
-                "message": "SUPERADMIN accounts cannot be deleted"
-            }), 403
+        if user.role.name == "SUPERADMIN":
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "SUPERADMIN accounts cannot be deleted",
+                    }
+                ),
+                403,
+            )
 
         user_id = user.id
         user_email = user.email
-        
+
         # Close all user sessions first
         UserSession.close_all_sessions(user_id)
-        
+
         # Delete the user (this will cascade delete related records due to foreign key constraints)
         db.session.delete(user)
         db.session.commit()
-        
-        logger.info(f"User account {user_email} (ID: {user_id}) was permanently deleted")
-        
-        return jsonify({
-            "success": True,
-            "message": "Account deleted successfully"
-        }), 200
+
+        logger.info(
+            f"User account {user_email} (ID: {user_id}) was permanently deleted"
+        )
+
+        return (
+            jsonify({"success": True, "message": "Account deleted successfully"}),
+            200,
+        )
 
     except Exception as e:
         logger.exception(f"Error deleting account for user {g.uid}: {str(e)}")

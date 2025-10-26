@@ -167,8 +167,15 @@ def generateInference():
         abort(500, "Error while saving inference")
 
     # Respond with proxy URLs
-    api_base_url = os.getenv("API_BASE_URL", "http://localhost:5000")
-    
+    api_base_url = os.getenv("API_BASE_URL") or "http://localhost:5000"
+
+    # Debug logging
+    logger.debug(f"API_BASE_URL env var: {os.getenv('API_BASE_URL')}")
+    logger.debug(f"api_base_url used: {api_base_url}")
+    logger.debug(
+        f"Generated URL: {api_base_url}/inferences/{new_inference.id}/image/result"
+    )
+
     return (
         jsonify(
             {
@@ -257,14 +264,14 @@ def serve_inference_image(inference_id, image_type):
     """
     Proxy endpoint to serve images from MinIO through the backend.
     This allows the frontend to access images even when MinIO is not publicly accessible.
-    
+
     Args:
         inference_id: The ID of the inference
         image_type: Either 'original' or 'result'
     """
     if image_type not in ["original", "result"]:
         abort(400, "Invalid image type. Must be 'original' or 'result'")
-    
+
     try:
         # Get the inference from database and verify ownership
         inference = Inference.query.filter_by(id=inference_id, userId=g.uid).first()
@@ -283,17 +290,17 @@ def serve_inference_image(inference_id, image_type):
 
         # Extract bucket and object key from S3 URL
         s3_live_base_url = os.getenv("S3_LIVE_BASE_URL")
-        
+
         if not s3_url.startswith(s3_live_base_url):
             abort(400, "Invalid image URL")
 
         # Parse the URL to get bucket and object key
         path = s3_url.replace(s3_live_base_url, "")
         parts = path.split("/", 1)
-        
+
         if len(parts) != 2:
             abort(400, "Invalid S3 URL format")
-        
+
         bucket, object_key = parts
 
         # Verify user owns this object

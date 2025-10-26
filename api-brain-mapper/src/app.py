@@ -30,7 +30,7 @@ from .routes.inferences import inferences
 from .routes.datasets import datasets
 from .routes.models import models
 from .routes.audit import audit
-from .routes.users import users 
+from .routes.users import users
 
 migrate = Migrate()  # Creates an instance of migrate without initialization
 
@@ -40,11 +40,13 @@ def create_app():
     app = Flask(__name__)
 
     # Configure app depending on environment mode
-    if (os.getenv('ENV_MODE') == 'production'):
+    if os.getenv("ENV_MODE") == "production":
         from config.production import ProductionConfig
+
         app.config.from_object(ProductionConfig)
     else:
         from config.development import DevelopmentConfig
+
         app.config.from_object(DevelopmentConfig)
 
     # Starts db connection
@@ -64,13 +66,13 @@ def create_app():
 
     # Configure flask_bcrypt utility
     bcrypt.init_app(app)
-    
+
     # Setup security headers
     setup_security_headers(app)
-    
+
     # Setup secure error handling
     setup_secure_error_handling(app)
-    
+
     # Initialize CSRF protection
     csrf.init_app(app)
 
@@ -86,27 +88,27 @@ def create_app():
     app.register_blueprint(users)
 
     # Setup cors policies
-    app.config['CORS_EXPOSE_HEADERS'] = ['Content-Type']
-    app.config['CORS_SUPPORTS_CREDENTIALS'] = True
-    
+    app.config["CORS_EXPOSE_HEADERS"] = ["Content-Type"]
+    app.config["CORS_SUPPORTS_CREDENTIALS"] = True
+
     # CORS configuration
-    if os.getenv('ENV_MODE') == 'production':
+    if os.getenv("ENV_MODE") == "production":
         # Production origins
         allowed_origins = [
             "https://yourdomain.com",  # Replace with domain
             "https://www.yourdomain.com",
         ]
-        
-        production_origin = os.getenv('FRONTEND_URL')
+
+        production_origin = os.getenv("FRONTEND_URL")
         if production_origin:
             allowed_origins.append(production_origin)
-        
-        allow_cloudflare_tunnels = True # TODO: Add a env to toggle
+
+        allow_cloudflare_tunnels = True  # TODO: Add a env to toggle
         if allow_cloudflare_tunnels:
             # Add regex pattern for any cloudflare tunnel subdomain
-            allowed_origins.append(r'https://.*\.trycloudflare\.com')
+            allowed_origins.append(r"https://.*\.trycloudflare\.com")
             print("Production mode: Cloudflare tunnels enabled for CORS")
-            
+
     else:
         # Development origins
         allowed_origins = [
@@ -116,29 +118,33 @@ def create_app():
             "http://127.0.0.1:5173",
             "http://127.0.0.1:3000",
             "http://127.0.0.1:3003",
-            r'https://.*\.trycloudflare\.com'
+            r"https://.*\.trycloudflare\.com",
         ]
-        
+
         print("Development mode: Allowing all *.trycloudflare.com subdomains for CORS")
-    
-    CORS(app,
-         resources={r"/*": {"origins": allowed_origins}},
-         supports_credentials=True,
-         expose_headers=['Content-Type'])
+
+    CORS(
+        app,
+        resources={r"/*": {"origins": allowed_origins}},
+        supports_credentials=True,
+        expose_headers=["Content-Type"],
+    )
 
     # Initialize dataset and model synchronization on startup
     with app.app_context():
         try:
             from .services.dataset_sync import sync_datasets_with_minio
+
             sync_datasets_with_minio()
         except Exception as e:
             print(f"Warning: Failed to sync datasets on startup: {e}")
-        
+
         try:
             from .services.model_sync import sync_models_with_nn_api
+
             sync_models_with_nn_api()
         except Exception as e:
             print(f"Warning: Failed to sync models on startup: {e}")
 
-    print('Running app')
+    print("Running app")
     return app
