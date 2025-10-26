@@ -166,29 +166,15 @@ def generateInference():
         logger.exception(f"Error saving in DB inference of {imgObjectKey}")
         abort(500, "Error while saving inference")
 
-    # Respond with the generated data
-    try:
-        presigned_base_url = minioClient.presigned_get_object(
-            s3Bucket,
-            imgObjectKey,
-            expires=datetime.timedelta(hours=24)
-        )
-        presigned_generated_url = minioClient.presigned_get_object(
-            s3Bucket,
-            result_object_key,
-            expires=datetime.timedelta(hours=24)
-        )
-    except Exception as e:
-        logger.warning(f"Failed to generate presigned URLs: {str(e)}")
-        presigned_base_url = baseImageUrl
-        presigned_generated_url = generatedImageUrl
+    # Respond with proxy URLs
+    api_base_url = os.getenv("API_BASE_URL", "http://localhost:5000")
     
     return (
         jsonify(
             {
                 "success": True,
-                "generatedImgUrl": presigned_generated_url,
-                "baseImageUrl": presigned_base_url,
+                "generatedImgUrl": f"{api_base_url}/inferences/{new_inference.id}/image/result",
+                "baseImageUrl": f"{api_base_url}/inferences/{new_inference.id}/image/original",
                 "id": new_inference.id,
             }
         ),
@@ -262,6 +248,86 @@ def getInferenceMetadata(inference_id):
     except Exception:
         logger.exception(f"Error fetching metadata for inference {inference_id}")
         abort(500, "Error fetching metadata")
+
+
+@inferences.route("/<int:inference_id>/image/<image_type>", methods=["GET"])
+@auth_required()
+@rate_limit_api(max_attempts=100, window_minutes=10)
+def serve_inference_image(inference_id, image_type):
+    """
+    Proxy endpoint to serve images from MinIO through the backend.
+    This allows the frontend to access images even when MinIO is not publicly accessible.
+    
+    Args:
+        inference_id: The ID of the inference
+        image_type: Either 'original' or 'result'
+    """
+    if image_type not in ["original", "result"]:
+        abort(400, "Invalid image type. Must be 'original' or 'result'")
+    
+    try:
+        # Get the inference from database and verify ownership
+        inference = Inference.query.filter_by(id=inference_id, userId=g.uid).first()
+
+        if not inference:
+            abort(404, "Inference not found")
+
+        # Determine which image URL to use
+        if image_type == "original":
+            s3_url = inference.baseImageUrl
+        else:
+            s3_url = inference.generatedImageUrl
+
+        if not s3_url:
+            abort(404, "Image not found")
+
+        # Extract bucket and object key from S3 URL
+        s3_live_base_url = os.getenv("S3_LIVE_BASE_URL")
+        
+        if not s3_url.startswith(s3_live_base_url):
+            abort(400, "Invalid image URL")
+
+        # Parse the URL to get bucket and object key
+        path = s3_url.replace(s3_live_base_url, "")
+        parts = path.split("/", 1)
+        
+        if len(parts) != 2:
+            abort(400, "Invalid S3 URL format")
+        
+        bucket, object_key = parts
+
+        # Verify user owns this object
+        if not object_key.startswith(f"{g.uid}/"):
+            abort(403, "Access denied to image resource")
+
+        # Get image from MinIO
+        minioClient = getMinioClient()
+
+        try:
+            response = minioClient.get_object(bucket, object_key)
+            image_data = response.read()
+            response.close()
+            response.release_conn()
+
+            # Return image with proper headers for caching
+            return Response(
+                image_data,
+                mimetype="image/jpeg",
+                headers={
+                    "Cache-Control": "public, max-age=31536000, immutable",
+                    "Content-Disposition": f'inline; filename="{os.path.basename(object_key)}"',
+                },
+            )
+
+        except Exception as e:
+            logger.error(f"Error fetching image from MinIO: {str(e)}")
+            abort(404, "Image not found in storage")
+
+    except Exception:
+        logger.exception(
+            f"Error serving image for inference {inference_id}, type {image_type}"
+        )
+        abort(500, "Error serving image")
 
 
 @inferences.route("/<int:inference_id>/download", methods=["GET"])

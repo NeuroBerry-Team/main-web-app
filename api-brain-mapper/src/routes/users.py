@@ -11,59 +11,26 @@ from ..database.dbConnection import db
 from ..security.decorators_utils import auth_required
 from ..security.input_validation import InputValidator
 from ..security.crypto_utils import hashPassword, checkPasswordHash
-from ..cloudServices.minioConnections import getMinioClient
 
 
 # Define router prefix
 users = Blueprint("users", __name__, url_prefix="/users")
 
 
-def generate_presigned_url_from_s3_url(s3_url, expires_hours=24):
+def get_proxy_image_url(inference_id, image_type):
     """
-    Generate a presigned URL from an S3 URL stored in database
+    Generate backend proxy URL for images instead of direct S3 URLs.
+    This ensures images can be accessed even when MinIO is not publicly accessible.
     
     Args:
-        s3_url: The S3 URL (e.g., http://localhost:9000/bucket/path/to/file.jpg)
-        expires_hours: Hours until the presigned URL expires (default: 24)
+        inference_id: The ID of the inference
+        image_type: 'original' or 'result'
     
     Returns:
-        Presigned URL string or original URL if generation fails
+        Proxy URL string
     """
-    if not s3_url:
-        return None
-    
-    try:
-        # Extract bucket and object key from S3 URL
-        s3_live_base_url = os.getenv("S3_LIVE_BASE_URL")
-        
-        if not s3_url.startswith(s3_live_base_url):
-            logger.warning(f"URL doesn't match expected S3 base: {s3_url}")
-            return s3_url
-        
-        # Remove base URL to get bucket/object_key
-        path = s3_url.replace(s3_live_base_url, "")
-        
-        # Split into bucket and object_key
-        parts = path.split("/", 1)
-        if len(parts) != 2:
-            logger.warning(f"Invalid S3 URL format: {s3_url}")
-            return s3_url
-        
-        bucket, object_key = parts
-        
-        # Generate presigned URL
-        minioClient = getMinioClient()
-        presigned_url = minioClient.presigned_get_object(
-            bucket,
-            object_key,
-            expires=timedelta(hours=expires_hours)
-        )
-        
-        return presigned_url
-        
-    except Exception as e:
-        logger.error(f"Error generating presigned URL for {s3_url}: {str(e)}")
-        return s3_url  # Return original URL as fallback
+    api_base_url = os.getenv("API_BASE_URL", "http://localhost:5000")
+    return f"{api_base_url}/inferences/{inference_id}/image/{image_type}"
 
 
 @users.route("/stats", methods=["GET"])
@@ -146,8 +113,8 @@ def get_user_stats():
                     "id": analysis.id,
                     "name": analysis.name,
                     "result": getattr(analysis, "result", analysis.name),
-                    "baseImageUrl": generate_presigned_url_from_s3_url(analysis.baseImageUrl),
-                    "generatedImageUrl": generate_presigned_url_from_s3_url(analysis.generatedImageUrl),
+                    "baseImageUrl": get_proxy_image_url(analysis.id, "original"),
+                    "generatedImageUrl": get_proxy_image_url(analysis.id, "result"),
                     "metadataUrl": analysis.metadataUrl,
                     "createdOn": analysis.createdOn.isoformat() + "Z",
                     "modelId": analysis.modelId,
@@ -261,8 +228,8 @@ def get_user_inferences():
                             "id": inference.id,
                             "name": inference.name,
                             "result": getattr(inference, "result", inference.name),
-                            "baseImageUrl": generate_presigned_url_from_s3_url(inference.baseImageUrl),
-                            "generatedImageUrl": generate_presigned_url_from_s3_url(inference.generatedImageUrl),
+                            "baseImageUrl": get_proxy_image_url(inference.id, "original"),
+                            "generatedImageUrl": get_proxy_image_url(inference.id, "result"),
                             "metadataUrl": inference.metadataUrl,
                             "createdOn": inference.createdOn.isoformat() + "Z",
                             "modelId": inference.modelId,
@@ -305,8 +272,8 @@ def get_user_inferences():
                             "id": inference.id,
                             "name": inference.name,
                             "result": getattr(inference, "result", inference.name),
-                            "baseImageUrl": generate_presigned_url_from_s3_url(inference.baseImageUrl),
-                            "generatedImageUrl": generate_presigned_url_from_s3_url(inference.generatedImageUrl),
+                            "baseImageUrl": get_proxy_image_url(inference.id, "original"),
+                            "generatedImageUrl": get_proxy_image_url(inference.id, "result"),
                             "metadataUrl": inference.metadataUrl,
                             "createdOn": inference.createdOn.isoformat() + "Z",
                             "modelId": inference.modelId,
