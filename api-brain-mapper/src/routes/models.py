@@ -26,7 +26,7 @@ models = Blueprint("models", __name__, url_prefix="/models")
 
 
 @models.route("/", methods=["GET"])
-@auth_required(["ADMIN", "SUPERADMIN"])
+@auth_required()
 def getAvailableModels():
     """
     Get all available models, syncing with NN API
