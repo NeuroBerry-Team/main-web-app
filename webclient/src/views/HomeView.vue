@@ -25,7 +25,7 @@
   width: 100%; 
   min-height: 100vh;
   margin: 0;
-  padding: 2rem;
+  padding: 1rem;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -34,8 +34,13 @@
   font-family: 'Poppins', sans-serif;
   background: linear-gradient(135deg, var(--dark-red) 0%, #3a0a0a 50%, #1a1a1a 100%);
   color: var(--text-light);
-  overflow: hidden;
+  overflow-x: hidden;
   box-sizing: border-box;
+}
+@media (min-width: 640px) {
+  .page-wrapper {
+    padding: 2rem;
+  }
 }
 
 .logo, .title, .subtitle, .cta-button {

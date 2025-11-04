@@ -112,16 +112,28 @@ onMounted(() => {
 .page-wrapper {
   width: 100%;
   min-height: 100vh;
-  padding: 2rem;
+  padding: 1rem;
   padding-top: 7rem;
   font-family: 'Poppins', sans-serif;
   color: #333;
   background-color: #fff;
+  overflow-x: hidden;
+}
+@media (min-width: 640px) {
+  .page-wrapper {
+    padding: 2rem;
+    padding-top: 7rem;
+  }
 }
 .main-content {
   display: flex;
   flex-direction: column;
-  gap: 3rem;
+  gap: 2rem;
+}
+@media (min-width: 768px) {
+  .main-content {
+    gap: 3rem;
+  }
 }
 
 /* --- Estilo para centrar el logo --- */
@@ -149,42 +161,98 @@ onMounted(() => {
   background-color: #fff;
   border-radius: 15px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.07);
-  padding: 2.5rem;
+  padding: 1.5rem;
   text-align: center;
   border: 1px solid #e5e7eb;
+  overflow-x: hidden;
+  word-wrap: break-word;
+}
+@media (min-width: 768px) {
+  .content-section {
+    padding: 2.5rem;
+  }
 }
 .section-title {
-  font-size: 2.2rem;
+  font-size: 1.5rem;
   font-weight: 800;
   color: #b22222;
   margin-bottom: 1.5rem;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+@media (min-width: 640px) {
+  .section-title {
+    font-size: 1.8rem;
+  }
+}
+@media (min-width: 768px) {
+  .section-title {
+    font-size: 2.2rem;
+  }
 }
 .section-text {
   max-width: 800px;
   margin: -1rem auto 1.5rem auto;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   line-height: 1.7;
   color: #555;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+@media (min-width: 640px) {
+  .section-text {
+    font-size: 1rem;
+  }
+}
+@media (min-width: 768px) {
+  .section-text {
+    font-size: 1.1rem;
+  }
 }
 
 /* --- Sección Hero (Bienvenida) --- */
 .hero-section {
   background: linear-gradient(45deg, #b91c1c, #7f1d1d);
   color: white;
-  padding: 3rem;
+  padding: 2rem;
   box-shadow: 0 10px 30px rgba(185, 28, 28, 0.25);
+  overflow-x: hidden;
+}
+@media (min-width: 768px) {
+  .hero-section {
+    padding: 3rem;
+  }
 }
 .hero-title {
-  font-size: 2.8rem;
+  font-size: 1.8rem;
   font-weight: 800;
   color: #fff;
   margin-bottom: 1.5rem;
   text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  word-wrap: break-word;
+}
+@media (min-width: 640px) {
+  .hero-title {
+    font-size: 2.2rem;
+  }
+}
+@media (min-width: 768px) {
+  .hero-title {
+    font-size: 2.8rem;
+  }
 }
 .hero-text {
   color: rgba(255, 255, 255, 0.9);
-  font-size: 1.2rem;
+  font-size: 1rem;
   margin-top: 1rem;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+@media (min-width: 768px) {
+  .hero-text {
+    font-size: 1.2rem;
+  }
 }
 .role-badge {
   display: inline-block;
@@ -203,13 +271,19 @@ onMounted(() => {
 /* --- Tarjetas Interactivas --- */
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 2rem;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
   text-align: left;
+}
+@media (min-width: 640px) {
+  .card-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    gap: 2rem;
+  }
 }
 .feature-card {
   background-color: #f9fafb;
-  padding: 2rem;
+  padding: 1.5rem;
   border-radius: 12px;
   border: 1px solid #e5e7eb;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -217,26 +291,54 @@ onMounted(() => {
   color: inherit;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
+  word-wrap: break-word;
+  min-width: 0;
+}
+@media (min-width: 768px) {
+  .feature-card {
+    padding: 2rem;
+  }
 }
 .feature-card:hover {
   transform: translateY(-8px);
   box-shadow: 0 15px 30px -5px rgba(0,0,0,0.1);
 }
 .feature-icon {
-  font-size: 2.5rem;
+  font-size: 2rem;
   margin-bottom: 1rem;
 }
+@media (min-width: 768px) {
+  .feature-icon {
+    font-size: 2.5rem;
+  }
+}
 .feature-title {
-  font-size: 1.4rem;
+  font-size: 1.2rem;
   font-weight: 700;
   color: #333;
   margin-bottom: 0.75rem;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+@media (min-width: 768px) {
+  .feature-title {
+    font-size: 1.4rem;
+  }
 }
 .feature-text {
-  font-size: 1rem;
+  font-size: 0.9rem;
   line-height: 1.6;
   color: #666;
   flex-grow: 1;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+@media (min-width: 768px) {
+  .feature-text {
+    font-size: 1rem;
+  }
 }
 
 /* --- Sección de Admin --- */
@@ -253,17 +355,27 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
-  padding: 0.8rem 2rem;
+  gap: 0.5rem;
+  padding: 0.7rem 1.5rem;
   border-radius: 25px;
   color: white;
   border: none;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 4px 15px rgba(0,0,0,0.1);
   text-decoration: none;
+  word-wrap: break-word;
+  text-align: center;
+  max-width: 100%;
+}
+@media (min-width: 768px) {
+  .action-btn {
+    gap: 0.75rem;
+    padding: 0.8rem 2rem;
+    font-size: 1.1rem;
+  }
 }
 .action-btn:hover {
   transform: translateY(-4px);

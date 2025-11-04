@@ -136,14 +136,21 @@ const examples = [
   min-height: 100vh;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1rem;
   font-family: 'Poppins', sans-serif;
   color: #333;
   display: flex;
   flex-direction: column;
-  gap: 4rem;
+  gap: 2.5rem;
   text-align: center;
   background-color: #fff;
+  overflow-x: hidden;
+}
+@media (min-width: 640px) {
+  .page-wrapper {
+    padding: 2rem;
+    gap: 4rem;
+  }
 }
 
 .logo-wrapper {
@@ -176,53 +183,109 @@ section {
 }
 
 .section-title {
-  font-size: 2.5rem; /* Títulos más grandes */
+  font-size: 1.5rem;
   font-weight: 800;
   color: #b22222;
   margin-bottom: 1rem;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+@media (min-width: 640px) {
+  .section-title {
+    font-size: 2rem;
+  }
+}
+@media (min-width: 768px) {
+  .section-title {
+    font-size: 2.5rem;
+  }
 }
 
 .hero-text {
   max-width: 900px;
   margin: 0 auto;
   text-align: center;
-  font-size: 1.2rem;
+  font-size: 1rem;
   line-height: 1.8;
   color: #555;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+@media (min-width: 768px) {
+  .hero-text {
+    font-size: 1.2rem;
+  }
 }
 
 /* --- Contenedor de descripciones de clases --- */
 .classes-description-container {
-  display: grid; /* Usar grid para mejor distribución */
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* 2 columnas o más si hay espacio */
-  gap: 1.5rem;
-  margin: 1rem auto 3rem auto; /* Más espacio abajo */
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin: 1rem auto 2rem auto;
   max-width: 900px;
+}
+@media (min-width: 640px) {
+  .classes-description-container {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+    margin: 1rem auto 2.5rem auto;
+  }
+}
+@media (min-width: 768px) {
+  .classes-description-container {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    gap: 1.5rem;
+    margin: 1rem auto 3rem auto;
+  }
 }
 
 .class-item {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
   text-align: left;
   background-color: #f9f9f9;
-  padding: 1rem;
+  padding: 0.85rem;
   border-radius: 10px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.05);
   border: 1px solid #eee;
+  overflow-x: hidden;
+  word-wrap: break-word;
+}
+@media (min-width: 640px) {
+  .class-item {
+    gap: 1rem;
+    padding: 1rem;
+  }
 }
 
 .color-box {
-  min-width: 30px; /* Ancho fijo */
-  height: 30px;
+  min-width: 25px;
+  height: 25px;
   border-radius: 6px;
-  border: 2px solid rgba(0,0,0,0.1); /* Borde más suave */
+  border: 2px solid rgba(0,0,0,0.1);
+  flex-shrink: 0;
+}
+@media (min-width: 640px) {
+  .color-box {
+    min-width: 30px;
+    height: 30px;
+  }
 }
 
 .class-text {
-  font-size: 1rem;
+  font-size: 0.9rem;
   line-height: 1.5;
-  margin: 0; /* Eliminar margen predeterminado */
+  margin: 0;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+@media (min-width: 640px) {
+  .class-text {
+    font-size: 1rem;
+  }
 }
 
 /* --- Contenedor de la demo de etiquetado --- */
@@ -330,9 +393,15 @@ section {
 /* --- Sección de Ejemplos Explicativos --- */
 .examples-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Cuadrícula adaptable */
-  gap: 2rem; /* Espacio entre ejemplos */
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
   margin-top: 1rem;
+}
+@media (min-width: 640px) {
+  .examples-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    gap: 2rem;
+  }
 }
 
 .example-item {

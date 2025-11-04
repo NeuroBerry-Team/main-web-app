@@ -92,14 +92,21 @@ const closePreview = () => {
   min-height: 100vh;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1rem;
   font-family: 'Poppins', sans-serif;
   color: #333;
   display: flex;
   flex-direction: column;
-  gap: 4rem;
+  gap: 2.5rem;
   text-align: center;
   background-color: #fff;
+  overflow-x: hidden;
+}
+@media (min-width: 640px) {
+  .page-wrapper {
+    padding: 2rem;
+    gap: 4rem;
+  }
 }
 
 .logo-wrapper {
@@ -131,25 +138,56 @@ section {
 }
 
 .section-title {
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: 800;
   color: #b22222;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+@media (min-width: 640px) {
+  .section-title {
+    font-size: 1.8rem;
+  }
+}
+@media (min-width: 768px) {
+  .section-title {
+    font-size: 2rem;
+  }
 }
 
 .justify-text {
   max-width: 900px;
   margin: 0 auto;
   text-align: justify;
-  font-size: 1.2rem;
+  font-size: 1rem;
   line-height: 1.8;
   color: #555;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+@media (min-width: 768px) {
+  .justify-text {
+    font-size: 1.2rem;
+  }
 }
 
 .gallery {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.5rem;
+  grid-template-columns: 1fr;
+  gap: 1rem;
   margin-top: 2rem;
+}
+@media (min-width: 640px) {
+  .gallery {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+  }
+}
+@media (min-width: 768px) {
+  .gallery {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+  }
 }
 
 .gallery-item {
@@ -217,7 +255,14 @@ section {
   display: flex;
   align-items: center;
   gap: 0.8rem;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+@media (min-width: 768px) {
+  .label-item {
+    font-size: 1.1rem;
+  }
 }
 
 .color-box {

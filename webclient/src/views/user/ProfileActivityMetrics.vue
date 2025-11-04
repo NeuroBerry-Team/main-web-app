@@ -189,14 +189,14 @@
               <transition name="harvest-expand">
                 <div v-if="showHarvestTool" class="harvest-tool-content">
                   <!-- Input Parameters -->
-                  <div class="harvest-inputs">
+                  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8 p-4 md:p-6 bg-white rounded-xl border border-gray-200">
                     <div class="input-group">
-                      <label for="timeRange">Período de Análisis</label>
+                      <label for="timeRange" class="block font-semibold text-gray-700 text-sm md:text-base mb-2">Período de Análisis</label>
                       <select 
                         id="timeRange" 
                         v-model="harvestParams.timeRange"
                         @change="calculateHarvest"
-                        class="harvest-select"
+                        class="w-full px-3 py-2 md:py-3 border-2 border-gray-200 rounded-lg text-sm md:text-base bg-white cursor-pointer transition-all focus:outline-none focus:border-red-700 focus:ring-4 focus:ring-red-700/10"
                       >
                         <option value="1">Último día</option>
                         <option value="3">Últimos 3 días</option>
@@ -204,11 +204,11 @@
                         <option value="14">Últimas 2 semanas</option>
                         <option value="30">Último mes</option>
                       </select>
-                      <span class="input-hint">Solo se consideran análisis recientes</span>
+                      <span class="block mt-1 text-xs md:text-sm text-gray-500 italic">Solo se consideran análisis recientes</span>
                     </div>
 
                     <div class="input-group">
-                      <label for="totalMeters">Metros Totales de Cultivo</label>
+                      <label for="totalMeters" class="block font-semibold text-gray-700 text-sm md:text-base mb-2">Metros Totales de Cultivo</label>
                       <input 
                         type="number" 
                         id="totalMeters" 
@@ -217,12 +217,13 @@
                         placeholder="200"
                         min="1"
                         step="1"
+                        class="w-full px-3 py-2 md:py-3 border-2 border-gray-200 rounded-lg text-sm md:text-base transition-all focus:outline-none focus:border-red-700 focus:ring-4 focus:ring-red-700/10"
                       />
-                      <span class="input-hint">Metros lineales totales de tu campo</span>
+                      <span class="block mt-1 text-xs md:text-sm text-gray-500 italic">Metros lineales totales de tu campo</span>
                     </div>
 
                     <div class="input-group">
-                      <label for="samplingPercentage">
+                      <label for="samplingPercentage" class="block font-semibold text-gray-700 text-sm md:text-base mb-2">
                         % del Cultivo Analizado: <strong>{{ harvestParams.samplingPercentage }}%</strong>
                       </label>
                       <input 
@@ -233,18 +234,18 @@
                         min="5"
                         max="100"
                         step="5"
-                        class="harvest-slider"
+                        class="harvest-slider w-full"
                       />
                       <div class="slider-labels">
                         <span>5%</span>
                         <span>50%</span>
                         <span>100%</span>
                       </div>
-                      <span class="input-hint">¿Qué porcentaje analizaste?</span>
+                      <span class="block mt-1 text-xs md:text-sm text-gray-500 italic">¿Qué porcentaje analizaste?</span>
                     </div>
                     
                     <div class="input-group">
-                      <label for="unitaryWeight">Peso Unitario (gramos)</label>
+                      <label for="unitaryWeight" class="block font-semibold text-gray-700 text-sm md:text-base mb-2">Peso Unitario (gramos)</label>
                       <input 
                         type="number" 
                         id="unitaryWeight" 
@@ -253,8 +254,9 @@
                         placeholder="4.5"
                         min="0"
                         step="0.1"
+                        class="w-full px-3 py-2 md:py-3 border-2 border-gray-200 rounded-lg text-sm md:text-base transition-all focus:outline-none focus:border-red-700 focus:ring-4 focus:ring-red-700/10"
                       />
-                      <span class="input-hint">Peso promedio por frambuesa</span>
+                      <span class="block mt-1 text-xs md:text-sm text-gray-500 italic">Peso promedio por frambuesa</span>
                     </div>
                   </div>
 
@@ -1343,58 +1345,7 @@ onMounted(async () => {
   padding: 1.5rem 0;
 }
 
-.harvest-inputs {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-  padding: 1.5rem;
-  background-color: white;
-  border-radius: 12px;
-  border: 1px solid #e5e7eb;
-}
 
-.input-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.input-group label {
-  font-weight: 600;
-  color: #374151;
-  font-size: 0.95rem;
-}
-
-.input-group input {
-  padding: 0.75rem;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
-  font-size: 1rem;
-  transition: all 0.3s ease;
-}
-
-.input-group input:focus {
-  outline: none;
-  border-color: #b91c1c;
-  box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.1);
-}
-
-.harvest-select {
-  padding: 0.75rem;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
-  font-size: 1rem;
-  background-color: white;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.harvest-select:focus {
-  outline: none;
-  border-color: #b91c1c;
-  box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.1);
-}
 
 .harvest-slider {
   width: 100%;
@@ -1449,11 +1400,7 @@ onMounted(async () => {
   margin-top: 0.25rem;
 }
 
-.input-hint {
-  font-size: 0.8rem;
-  color: #6b7280;
-  font-style: italic;
-}
+
 
 .harvest-info {
   padding: 1rem;
