@@ -46,6 +46,20 @@
               </div>
             </section>
 
+            <!-- Metrics Quick Access Card -->
+            <div class="metrics-card animated-item" style="animation-delay: 0.15s;">
+              <div class="metrics-content">
+                <div class="metrics-icon">📊</div>
+                <div class="metrics-text">
+                  <h3 class="metrics-title">Métricas Detalladas</h3>
+                  <p class="metrics-subtitle">Visualiza estadísticas y gráficos de tus detecciones</p>
+                </div>
+              </div>
+              <router-link to="/profile/activity/metrics" class="metrics-btn">
+                Ver Métricas →
+              </router-link>
+            </div>
+
             <div class="content-grid">
               <div class="content-section animated-item" style="animation-delay: 0.2s;">
                 <h3 class="section-title">Análisis Recientes</h3>
@@ -252,6 +266,69 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1.5rem;
+}
+
+/* --- Tarjeta de Métricas --- */
+.metrics-card {
+  background: linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%);
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 5px 15px rgba(185, 28, 28, 0.2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  margin-bottom: 1.5rem;
+}
+.metrics-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px rgba(185, 28, 28, 0.3);
+}
+.metrics-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+}
+.metrics-icon {
+  font-size: 2.5rem;
+  background: rgba(255, 255, 255, 0.15);
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+}
+.metrics-text {
+  color: white;
+}
+.metrics-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+  color: white;
+}
+.metrics-subtitle {
+  font-size: 0.9rem;
+  margin: 0.25rem 0 0 0;
+  color: rgba(255, 255, 255, 0.85);
+}
+.metrics-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  white-space: nowrap;
+}
+.metrics-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateX(4px);
 }
 .stat-card {
   background-color: #fff;
