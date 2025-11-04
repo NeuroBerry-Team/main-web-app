@@ -34,12 +34,15 @@ export function useCSRF() {
       await fetchCSRFToken()
     }
 
-    // Add CSRF token to headers
-    if (csrfToken.value) {
-      options.headers = {
-        ...options.headers,
-        'X-CSRF-Token': csrfToken.value
-      }
+    // Add CSRF token and Content-Type to headers
+    options.headers = {
+      ...options.headers,
+      'X-CSRF-Token': csrfToken.value || ''
+    }
+
+    // Add Content-Type for requests with body
+    if (options.body && typeof options.body === 'string') {
+      options.headers['Content-Type'] = 'application/json'
     }
 
     // Ensure credentials are included
@@ -50,7 +53,7 @@ export function useCSRF() {
       
       // If CSRF token is invalid, try to refresh it once
       if (response.status === 403) {
-        const errorText = await response.text()
+        const errorText = await response.clone().text()
         
         if (errorText.includes('CSRF') || errorText.includes('csrf')) {
           await fetchCSRFToken()

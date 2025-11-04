@@ -5,7 +5,7 @@
       <img src="/NeuroBerry_horizontal.png" alt="NeuroBerry Logo" class="header-logo" />
       <div class="header-text">
         <h1 class="header-title">Panel de Administración</h1>
-        <p class="header-subtitle">Gestión de entrenamientos, usuarios y sistema.</p>
+        <p class="header-subtitle">Gestión de entrenamientos y usuarios.</p>
       </div>
     </header>
 
@@ -27,16 +27,8 @@
           <TrainingManager />
         </div>
 
-        <div v-else-if="activeTab === 'users'" class="placeholder-content">
-          <div class="placeholder-icon">👥</div>
-          <h3 class="placeholder-title">Gestión de Usuarios</h3>
-          <p class="placeholder-text">Esta funcionalidad estará disponible próximamente.</p>
-        </div>
-
-        <div v-else-if="activeTab === 'settings'" class="placeholder-content">
-          <div class="placeholder-icon">⚙️</div>
-          <h3 class="placeholder-title">Configuración del Sistema</h3>
-          <p class="placeholder-text">Esta funcionalidad estará disponible próximamente.</p>
+        <div v-else-if="activeTab === 'users'">
+          <UserManagement />
         </div>
       </transition>
     </main>
@@ -49,14 +41,14 @@
 import { ref, onMounted } from 'vue';
 import { useAuth } from '../../composables/use_auth.js';
 import TrainingManager from './TrainingManager.vue';
+import UserManagement from './UserManagement.vue';
 
 const { user, checkAuthStatus } = useAuth();
 const activeTab = ref('training');
 
 const tabs = ref([
   { id: 'training', label: 'Entrenamientos', icon: '🔄' },
-  { id: 'users', label: 'Usuarios', icon: '👥' },
-  { id: 'settings', label: 'Configuración', icon: '⚙️' }
+  { id: 'users', label: 'Usuarios', icon: '👥' }
 ]);
 
 onMounted(async () => {
@@ -154,27 +146,6 @@ onMounted(async () => {
   border: 1px solid #e0e0e0;
   color: #333;
   padding: 2.5rem;
-}
-
-/* --- Contenido de Pestañas Placeholder --- */
-.placeholder-content {
-  text-align: center;
-  padding: 2rem;
-}
-.placeholder-icon {
-  font-size: 4rem;
-  margin-bottom: 1.5rem;
-  color: #b91c1c; /* Icono en rojo */
-}
-.placeholder-title {
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: #b91c1c; /* Título en rojo */
-  margin-bottom: 1rem;
-}
-.placeholder-text {
-  font-size: 1.1rem;
-  color: #555;
 }
 
 /* --- Animaciones --- */

@@ -31,6 +31,7 @@ from .routes.datasets import datasets
 from .routes.models import models
 from .routes.audit import audit
 from .routes.users import users
+from .routes.admin import admin
 
 migrate = Migrate()  # Creates an instance of migrate without initialization
 
@@ -86,6 +87,7 @@ def create_app():
     app.register_blueprint(models)
     app.register_blueprint(audit)
     app.register_blueprint(users)
+    app.register_blueprint(admin)
 
     # Setup cors policies
     app.config["CORS_EXPOSE_HEADERS"] = ["Content-Type"]

@@ -31,7 +31,7 @@ auth = Blueprint("auth", __name__, url_prefix="/auth")
 
 
 @auth.route("/addUser", methods=["POST"])
-@auth_required(["ADMIN"])
+@auth_required(["ADMIN", "SUPERADMIN"])
 def addUser():
     # Validate request structure
     req = InputValidator.validate_json_request(
