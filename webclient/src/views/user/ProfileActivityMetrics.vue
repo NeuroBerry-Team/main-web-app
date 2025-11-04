@@ -51,7 +51,8 @@
                 <div class="card-icon">📈</div>
                 <div class="card-content">
                   <div class="card-value">{{ recentInferences }}</div>
-                  <div class="card-label">Últimos 30 Días</div>
+                  <div class="card-label">Análisis Recientes</div>
+                  <div class="card-hint">Realizados en los últimos 30 días</div>
                 </div>
               </div>
 
