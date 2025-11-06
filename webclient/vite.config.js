@@ -9,7 +9,6 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [
     vue(),
-    vueDevTools(),
     // Only enable devtools in development
     process.env.NODE_ENV === 'development' ? vueDevTools() : null,
     tailwindcss(),
