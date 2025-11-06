@@ -195,7 +195,7 @@ El sistema crea automáticamente un usuario administrador:
 
 ## 🧠 Configuración de la API de Inferencia
 
-Para configurar la API de Inferencia Neural, consulte la documentación específica en el archivo README correspondiente del módulo de IA.
+Para configurar la API de Inferencia, consulte la documentación específica en el archivo README correspondiente del módulo de IA. (TBD)
 
 ## 🔧 Configuración Automática de MinIO/S3
 
