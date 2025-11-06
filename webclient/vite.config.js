@@ -9,6 +9,7 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [
     vue(),
+    vueDevTools(),
     // Only enable devtools in development
     process.env.NODE_ENV === 'development' ? vueDevTools() : null,
     tailwindcss(),
@@ -21,5 +22,6 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 3000,
+    allowedHosts: ['.trycloudflare.com']
   }
 })
